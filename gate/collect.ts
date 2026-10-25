@@ -49,6 +49,11 @@ export function k6Measurements(summary: K6Summary): Measurements {
     if (endpoint && typeof data["p(95)"] === "number") {
       out[`load.p95.${endpoint}`] = data["p(95)"] as number;
     }
+    // Kept with the run so the dashboard can draw each endpoint's budget
+    const budget = Object.keys(data.thresholds ?? {})
+      .map((expression) => /^p\(95\)<(\d+(?:\.\d+)?)$/.exec(expression)?.[1])
+      .find(Boolean);
+    if (endpoint && budget) out[`load.budget.${endpoint}`] = Number(budget);
   }
   const num = (metric: string, stat: string) => {
     const value = summary.metrics[metric]?.[stat];
