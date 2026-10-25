@@ -80,17 +80,18 @@ The verdict is posted as a PR comment and the job summary. Each metric and its b
 
 All numbers are from GitHub Actions (a 4-vCPU `ubuntu-latest` runner hosting the app, Postgres, k6 and Chromium at once). Treat them as a comparison between runs, not capacity figures.
 
-### The server passed. The user still waited 4x longer.
+### Under stress the server passed, and the user's wait depended on timing
 
-In the [stress run](https://github.com/BRLorena/finance-app-performance/actions/runs/40185693474), with up to 140 virtual users, **every server-side budget passed**: every endpoint p95 stayed under its threshold, with no errors. Measured from a real browser at the same time, the dashboard got four times slower:
+Two [stress](https://github.com/BRLorena/finance-app-performance/actions/runs/40185693474) [runs](https://github.com/BRLorena/finance-app-performance/actions/runs/40191877791) with up to 140 virtual users, same app commit. In both, **every server-side budget passed** with no errors, about 68 requests/s and a dashboard page p95 of about 380 ms. The browser, measuring at the same time, saw two very different dashboards:
 
-| Dashboard                                 | Idle   | Under stress |                                           |
-| ----------------------------------------- | ------ | ------------ | ----------------------------------------- |
-| Data ready (until `/api/summary` arrives) | 205 ms | 829 ms       | **4.04x**: over the 4x limit, gate failed |
-| LCP                                       | 108 ms | 564 ms       | 5.2x                                      |
-| `/api/summary` p95, from k6               |        | 157 ms       | under its 500 ms budget                   |
+| Dashboard, idle → under stress | Run 1                           | Run 2               |
+| ------------------------------ | ------------------------------- | ------------------- |
+| Time to first byte             | 16 → 402 ms                     | 17 → 18 ms          |
+| LCP                            | 108 → 564 ms                    | 108 → 128 ms        |
+| Data ready (`/api/summary`)    | 205 → 829 ms: **4.04x, failed** | 212 → 267 ms: 1.26x |
+| Gate verdict                   | Failed (only the browser layer) | Passed              |
 
-A load test alone would have reported this run as green. The dashboard waits on several requests one after another: the HTML (383 ms p95 under stress), its scripts, then `/api/summary`. Each passes its own budget, but the user waits for all of them in sequence. Only a browser measuring the whole page sees that sum, which is the reason for running both layers together.
+The server's p95 says 1 in 20 page requests waits about 400 ms, and that tail was there in both runs. In run 1, the browser's samples landed in it: its page request waited 402 ms before the first byte, and the scripts and `/api/summary` that come after it added up to a 4x slower dashboard. The k6 numbers, each within budget, were the same in both runs. A load test alone would have reported both runs as green. The browser layer shows what that tail costs a user, and the run-to-run spread is why the gate keeps a history instead of trusting one stress run.
 
 ### Everything else
 

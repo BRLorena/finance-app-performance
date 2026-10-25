@@ -4,6 +4,11 @@
   hosts the app, Postgres, k6 and Chromium at once. Results are good for
   comparing runs with each other, not for capacity planning. Production
   capacity needs production-like infrastructure.
+- **UX under load is a few samples at one moment.** The browser measures 5
+  page loads at a fixed point in the ramp. Under stress, whether they land in
+  the server's slow tail varies: one stress run measured the dashboard 4x
+  slower, the next 1.3x, with the same server numbers. Spreading samples
+  across the whole plateau would make this steadier.
 - **No CDN, one instance.** The local build is a single `next start` process.
   On Vercel, pages may be served from the CDN and the API runs on many
   serverless instances.
