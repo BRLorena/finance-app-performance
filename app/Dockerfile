@@ -12,7 +12,13 @@ WORKDIR /app
 RUN git init -q . \
   && git fetch -q --depth 1 "$APP_REPO" "$APP_REF" \
   && git checkout -q FETCH_HEAD \
-  && git log -1 --format='%H %s' > /app-commit.txt \
+  && git log -1 --format='%H %s' > /app-commit.txt
+
+# Optional local changes to measure before they reach finance_app
+COPY patches/ /patches/
+RUN for p in /patches/*.patch; do \
+      [ -e "$p" ] || continue; echo "Applying $p"; git apply "$p"; \
+    done \
   && rm -rf .git
 
 RUN npm ci --no-audit --no-fund

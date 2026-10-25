@@ -100,14 +100,14 @@ jobs:
       # ── local target: the app and its database, built from finance_app ──
       # The built image is cached whole, keyed by the finance_app commit:
       # a hit is one download + docker load, a full build only happens
-      # when finance_app (or the Dockerfile) changes.
+      # when finance_app, the Dockerfile or a patch changes.
       - name: Restore finance_app image
         id: img-cache
         if: steps.cfg.outputs.target == 'local'
         uses: actions/cache/restore@v4
         with:
           path: /tmp/finance-app.tar.zst
-          key: finance-app-${{ steps.cfg.outputs.app_sha }}-${{ hashFiles('app/Dockerfile') }}
+          key: finance-app-${{ steps.cfg.outputs.app_sha }}-${{ hashFiles('app/**') }}
       - name: Load cached image
         if: steps.cfg.outputs.target == 'local' && steps.img-cache.outputs.cache-hit == 'true'
         run: zstd -dc /tmp/finance-app.tar.zst | docker load
