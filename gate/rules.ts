@@ -79,5 +79,5 @@ export const RULES: Rule[] = [
 /** Every endpoint p95 is also compared against its baseline */
 export const LOAD_REGRESSION: Pick<Rule, "regressionPct" | "noiseFloor"> = {
   regressionPct: NOISE_PCT,
-  noiseFloor: 25,
+  noiseFloor: 50,
 };

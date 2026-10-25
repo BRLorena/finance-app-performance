@@ -44,8 +44,12 @@ in a fresh browser context (cold cache) and the **median** is kept.
 Every check with a tolerance is also compared with the **last passing run of the
 same target and profile** (`baseline-<target>-<profile>.json` on GitHub Pages).
 A metric regresses only when it's worse by more than `BASELINE_NOISE_PCT`
-(default 25%) **and** by more than an absolute noise floor (100 ms for UX, 25 ms
+(default 25%) **and** by more than an absolute noise floor (100 ms for UX, 50 ms
 for endpoints). The floor stops a 20 ms → 30 ms change (+50%) from failing a build.
+The endpoint floor was 25 ms until a smoke run (about 24 requests per endpoint,
+so the p95 is the second-slowest request) measured `expense_create` at 38 ms
+against a 7 ms baseline on an unchanged app. 50 ms still catches a real
+regression like the 300 ms one in demo PR #4.
 
 Failed runs never become the baseline, so a slow build can't lower the bar for
 the next one.
