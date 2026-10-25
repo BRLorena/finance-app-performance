@@ -16,6 +16,9 @@
 - **Login isn't rate-limited.** Only `/api/register` limits by IP, so the
   credentials callback accepts unlimited attempts. Observed while writing the
   login flow; not load-tested against production.
+- **Under stress, the list endpoints degrade first.** Expense and income
+  lists reach a p95 of 351–377 ms in CI at up to 140 VUs, while the
+  12-query summary stays at 157 ms. Not investigated yet.
 - **AI endpoints are excluded.** `/api/ai/*` call Groq's free tier (30 requests
   a minute), so load would measure Groq's quota, not the app.
 - **The weekly production run is a smoke check, not a load test.** 3 virtual
