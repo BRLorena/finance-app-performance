@@ -60,9 +60,10 @@ describe("k6Thresholds", () => {
 });
 
 describe("k6Measurements", () => {
-  it("keeps endpoint p95s and run totals", () => {
+  it("keeps endpoint p95s, their budgets and run totals", () => {
     expect(k6Measurements(summary)).toEqual({
       "load.p95.summary": 31.7,
+      "load.budget.summary": 500,
       "load.error_rate": 0,
       "load.checks_rate": 1,
       "load.iterations": 22,

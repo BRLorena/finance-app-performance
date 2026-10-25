@@ -7,42 +7,84 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
       :root {
-        --bg: #f7f7f8;
-        --card: #ffffff;
-        --text: #1d1d22;
-        --muted: #5f6170;
-        --border: #e2e3e8;
+        color-scheme: light;
+        --bg: #f6f6f4;
+        --card: #fcfcfb;
+        --text: #0b0b0b;
+        --muted: #52514e;
+        --faint: #8a8984;
+        --border: #e4e3df;
+        --grid: #ecebe7;
         --pass: #1f7a3a;
+        --pass-bg: #e3f3e8;
         --fail: #b42318;
+        --fail-bg: #fbe7e5;
         --warn: #a15c00;
+        --warn-bg: #fdf0dc;
         --none: #6b6e7b;
-        --s1: #2563eb;
-        --s2: #d9480f;
-        --s3: #0f766e;
-        --s4: #9333ea;
-        --s5: #a16207;
-        --s6: #be185d;
-        --s7: #475569;
+        --none-bg: #ecedf0;
+        --s1: #2a78d6;
+        --s2: #eb6834;
+        --s3: #1baf7a;
+        --s4: #eda100;
+        --s5: #e87ba4;
+        --s6: #008300;
+        --s7: #6250d6;
+        --s8: #e34948;
       }
       @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #111216;
-          --card: #1a1b21;
-          --text: #ececf1;
-          --muted: #a0a3b1;
-          --border: #2c2e37;
+        :root:where(:not([data-theme="light"])) {
+          color-scheme: dark;
+          --bg: #111110;
+          --card: #1a1a19;
+          --text: #f0efec;
+          --muted: #c3c2b7;
+          --faint: #8d8c85;
+          --border: #2c2c2a;
+          --grid: #262624;
           --pass: #4ade80;
+          --pass-bg: #14301f;
           --fail: #f87171;
+          --fail-bg: #3a1716;
           --warn: #fbbf24;
+          --warn-bg: #36280c;
           --none: #9ca3af;
-          --s1: #60a5fa;
-          --s2: #fb923c;
-          --s3: #2dd4bf;
-          --s4: #c084fc;
-          --s5: #facc15;
-          --s6: #f472b6;
-          --s7: #94a3b8;
+          --none-bg: #26272b;
+          --s1: #3987e5;
+          --s2: #d95926;
+          --s3: #199e70;
+          --s4: #c98500;
+          --s5: #d55181;
+          --s6: #008300;
+          --s7: #9085e9;
+          --s8: #e66767;
         }
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #111110;
+        --card: #1a1a19;
+        --text: #f0efec;
+        --muted: #c3c2b7;
+        --faint: #8d8c85;
+        --border: #2c2c2a;
+        --grid: #262624;
+        --pass: #4ade80;
+        --pass-bg: #14301f;
+        --fail: #f87171;
+        --fail-bg: #3a1716;
+        --warn: #fbbf24;
+        --warn-bg: #36280c;
+        --none: #9ca3af;
+        --none-bg: #26272b;
+        --s1: #3987e5;
+        --s2: #d95926;
+        --s3: #199e70;
+        --s4: #c98500;
+        --s5: #d55181;
+        --s6: #008300;
+        --s7: #9085e9;
+        --s8: #e66767;
       }
       * {
         box-sizing: border-box;
@@ -58,112 +100,236 @@
           sans-serif;
       }
       main {
-        max-width: 1100px;
+        max-width: 1160px;
         margin: 0 auto;
         padding: 32px 16px 48px;
       }
       h1 {
-        font-size: 26px;
-        margin: 0 0 4px;
+        font-size: 28px;
+        letter-spacing: -0.01em;
+        margin: 0 0 6px;
       }
       h2 {
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 36px 0 12px;
+      }
+      h3 {
         font-size: 16px;
         margin: 0 0 4px;
       }
       p.lead {
         color: var(--muted);
         margin: 0 0 24px;
-        max-width: 760px;
+        max-width: 780px;
       }
       a {
         color: var(--s1);
       }
-      .tiles {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 12px;
-        margin-bottom: 20px;
+      code {
+        font-size: 0.92em;
       }
-      .tile,
       .card {
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 16px;
+        border-radius: 14px;
+        padding: 18px;
+        min-width: 0;
       }
-      .tile .kind {
+      .card > p {
+        color: var(--muted);
+        margin: 0 0 14px;
+        font-size: 13px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 500px), 1fr));
+        gap: 16px;
+      }
+      .label {
         color: var(--muted);
         font-size: 13px;
       }
-      .tile .status {
-        font-size: 20px;
+      .big {
+        font-size: 30px;
         font-weight: 650;
-        margin: 2px 0;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        margin: 4px 0 2px;
+        font-variant-numeric: tabular-nums;
+      }
+      .big small {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--muted);
+        letter-spacing: 0;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 2px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .pill.passed {
+        color: var(--pass);
+        background: var(--pass-bg);
+      }
+      .pill.failed {
+        color: var(--fail);
+        background: var(--fail-bg);
+      }
+      .pill.unstable {
+        color: var(--warn);
+        background: var(--warn-bg);
+      }
+      .pill.no-data {
+        color: var(--none);
+        background: var(--none-bg);
+      }
+      .tile .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
       }
       .tile .when {
         color: var(--muted);
         font-size: 13px;
+        margin-top: 10px;
       }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
-        gap: 16px;
+      .headline {
+        border-left: 4px solid var(--s1);
       }
-      @media (max-width: 520px) {
-        .grid {
-          grid-template-columns: 1fr;
-        }
+      .headline.bad {
+        border-left-color: var(--fail);
       }
-      .card p {
-        color: var(--muted);
-        margin: 0 0 12px;
-        font-size: 13px;
+      .headline.good {
+        border-left-color: var(--pass);
       }
       .chart {
         position: relative;
-        height: 260px;
+        height: 320px;
+      }
+      .chart.tall {
+        height: 380px;
       }
       .empty {
         color: var(--muted);
         font-size: 14px;
-        padding: 40px 0;
+        padding: 48px 12px;
         text-align: center;
+      }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .tabs button {
+        font: inherit;
+        font-size: 13px;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px 12px;
+        cursor: pointer;
+      }
+      .tabs button[aria-pressed="true"] {
+        color: var(--text);
+        background: var(--grid);
+        border-color: var(--faint);
+      }
+      .vitals {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
+      }
+      .vital {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .vital .big {
+        font-size: 22px;
+        white-space: nowrap;
+      }
+      .vital .big small {
+        font-size: 14px;
+      }
+      .score {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .ring {
+        --p: 0;
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        flex: none;
+        display: grid;
+        place-items: center;
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+        background:
+          radial-gradient(var(--card) 58%, transparent 60%),
+          conic-gradient(var(--ring) calc(var(--p) * 1%), var(--grid) 0);
       }
       table {
         width: 100%;
         border-collapse: collapse;
         font-size: 14px;
+        font-variant-numeric: tabular-nums;
       }
       th,
       td {
         text-align: left;
-        padding: 8px 6px;
+        padding: 9px 8px;
         border-bottom: 1px solid var(--border);
         white-space: nowrap;
       }
       th {
         color: var(--muted);
         font-weight: 500;
+        font-size: 13px;
+      }
+      td.num,
+      th.num {
+        text-align: right;
       }
       .table-wrap {
         overflow-x: auto;
-      }
-      .passed {
-        color: var(--pass);
-      }
-      .failed {
-        color: var(--fail);
-      }
-      .unstable {
-        color: var(--warn);
-      }
-      .no-data {
-        color: var(--none);
       }
       footer {
         color: var(--muted);
         font-size: 13px;
         margin-top: 24px;
+      }
+      @media (max-width: 520px) {
+        .chart,
+        .chart.tall {
+          height: 300px;
+        }
+        .big {
+          font-size: 26px;
+        }
       }
     </style>
   </head>
@@ -171,7 +337,7 @@
     <main>
       <h1>Finance App performance</h1>
       <p class="lead">
-        Server load measured with k6 and user experience measured with
+        Server load measured with k6 and the user's experience measured with
         Playwright + Lighthouse, with the app idle and under load, judged by one
         gate. Source:
         <a href="https://github.com/BRLorena/finance-app-performance"
@@ -179,42 +345,60 @@
         >.
       </p>
 
-      <div class="tiles" id="tiles"></div>
+      <div class="row" id="tiles"></div>
 
+      <h2>What happens under stress</h2>
+      <div class="row" id="headline"></div>
+
+      <h2>By load level (latest run of each profile)</h2>
       <div class="grid">
         <section class="card">
-          <h2>Endpoint p95 under load</h2>
+          <h3>Endpoint p95 response time</h3>
           <p>
-            Nightly <code>load</code> profile (30 virtual users) on a local
-            production build.
+            Local production build. The tick on each row is that endpoint's
+            budget; a bar past it fails the gate.
           </p>
-          <div class="chart"><canvas id="p95"></canvas></div>
+          <div class="chart tall"><canvas id="p95"></canvas></div>
+          <p class="sub" id="login-note"></p>
         </section>
         <section class="card">
-          <h2>Dashboard data ready: idle vs under load</h2>
+          <h3>Dashboard data ready: idle vs under load</h3>
           <p>
             Median time until the dashboard's numbers arrive, from navigation
-            start.
+            start. Labels show the slowdown; the gate allows up to 4x.
           </p>
-          <div class="chart"><canvas id="ux"></canvas></div>
-        </section>
-        <section class="card">
-          <h2>Lighthouse performance score</h2>
-          <p>Desktop preset, nightly runs, with the app idle and under load.</p>
-          <div class="chart"><canvas id="lh"></canvas></div>
-        </section>
-        <section class="card">
-          <h2>Production smoke (Vercel)</h2>
-          <p>
-            Weekly read-only check: 3 virtual users for 50 seconds against the
-            live app.
-          </p>
-          <div class="chart"><canvas id="prod"></canvas></div>
+          <div class="chart tall"><canvas id="ux"></canvas></div>
         </section>
       </div>
 
-      <section class="card" style="margin-top: 16px">
-        <h2>Recent runs</h2>
+      <h2>User experience during the nightly load run</h2>
+      <section class="card">
+        <p id="vitals-note"></p>
+        <div class="vitals" id="vitals"></div>
+      </section>
+
+      <h2>Trends</h2>
+      <section class="card">
+        <div
+          class="tabs"
+          id="trend-tabs"
+          role="group"
+          aria-label="Run kind"
+        ></div>
+        <div class="grid">
+          <div>
+            <h3>Endpoint p95</h3>
+            <div class="chart"><canvas id="trend-p95"></canvas></div>
+          </div>
+          <div>
+            <h3>Dashboard data ready</h3>
+            <div class="chart"><canvas id="trend-ux"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <h2>Recent runs</h2>
+      <section class="card">
         <div class="table-wrap"><table id="runs"></table></div>
       </section>
 
@@ -226,36 +410,52 @@
         getComputedStyle(document.documentElement)
           .getPropertyValue(name)
           .trim();
-      const SERIES = [
-        "--s1",
-        "--s2",
-        "--s3",
-        "--s4",
-        "--s5",
-        "--s6",
-        "--s7",
-      ].map(css);
+      const C = (n) => css(`--s${n}`);
+
       const STATUS = {
-        passed: "Passed",
-        failed: "Failed",
-        unstable: "Unstable",
-        "no-data": "No data",
+        passed: "✓ Passed",
+        failed: "✕ Failed",
+        unstable: "! Unstable",
+        "no-data": "– No data",
       };
       const KINDS = {
+        "local-smoke": "PR smoke (local)",
         "local-load": "Nightly load (local)",
-        "local-smoke": "Smoke (local, PRs and main)",
+        "local-stress": "Stress (local, manual)",
         "vercel-smoke": "Production smoke (Vercel)",
       };
+      const PROFILES = [
+        ["local-smoke", "Smoke · 3 users"],
+        ["local-load", "Load · 30 users"],
+        ["local-stress", "Stress · up to 140"],
+      ];
+      // Each endpoint keeps its colour in every chart, whichever runs exist
+      const ENDPOINTS = [
+        ["summary", "Summary API", 1],
+        ["expenses_list", "Expenses list", 2],
+        ["incomes_list", "Incomes list", 3],
+        ["dashboard_page", "Dashboard page", 4],
+        ["expense_create", "Create expense", 5],
+        ["expense_delete", "Delete expense", 6],
+        ["login", "Login", 7],
+      ];
 
       Chart.defaults.color = css("--muted");
-      Chart.defaults.borderColor = css("--border");
+      Chart.defaults.borderColor = css("--grid");
       Chart.defaults.font.family = "system-ui, -apple-system, sans-serif";
+      Chart.defaults.plugins.legend.labels.boxWidth = 10;
+      Chart.defaults.plugins.legend.labels.boxHeight = 10;
+      Chart.defaults.plugins.legend.labels.useBorderRadius = true;
+      Chart.defaults.plugins.legend.labels.borderRadius = 3;
+      Chart.defaults.plugins.tooltip.padding = 10;
+      Chart.defaults.plugins.tooltip.boxPadding = 4;
 
-      const fmtDate = (iso) =>
-        new Date(iso).toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-        });
+      const ms = (v) =>
+        v == null
+          ? "–"
+          : v >= 1000
+            ? `${(v / 1000).toFixed(2)} s`
+            : `${Math.round(v)} ms`;
       const fmtTime = (iso) =>
         new Date(iso).toLocaleString(undefined, {
           month: "short",
@@ -263,64 +463,395 @@
           hour: "2-digit",
           minute: "2-digit",
         });
+      const pill = (status) =>
+        `<span class="pill ${status}">${STATUS[status] ?? status}</span>`;
+      const runLink = (r) =>
+        r.runUrl ? `<a href="${r.runUrl}">run logs</a>` : "";
 
-      function lineChart(id, runs, series, unit, opts = {}) {
-        const canvas = document.getElementById(id);
+      // Draws each endpoint's budget as a tick across its bar group
+      const budgetTicks = {
+        id: "budgetTicks",
+        afterDatasetsDraw(chart, _args, opts) {
+          const { ctx, scales } = chart;
+          const band = scales.y.height / scales.y.ticks.length;
+          ctx.save();
+          ctx.strokeStyle = css("--text");
+          ctx.lineWidth = 2;
+          opts.budgets.forEach((budget, i) => {
+            if (budget == null) return;
+            const x = scales.x.getPixelForValue(budget);
+            const y = scales.y.getPixelForValue(i);
+            ctx.beginPath();
+            ctx.moveTo(x, y - band * 0.42);
+            ctx.lineTo(x, y + band * 0.42);
+            ctx.stroke();
+          });
+          ctx.restore();
+        },
+      };
+
+      // Writes "1.0x"-style labels above the under-load bars
+      const slowdownLabels = {
+        id: "slowdownLabels",
+        afterDatasetsDraw(chart, _args, opts) {
+          const { ctx } = chart;
+          const meta = chart.getDatasetMeta(1);
+          ctx.save();
+          ctx.font = "600 13px system-ui, -apple-system, sans-serif";
+          ctx.textAlign = "center";
+          meta.data.forEach((bar, i) => {
+            const ratio = opts.ratios[i];
+            if (ratio == null) return;
+            ctx.fillStyle = ratio >= 4 ? css("--fail") : css("--text");
+            ctx.fillText(`${ratio.toFixed(1)}x`, bar.x, bar.y - 8);
+          });
+          ctx.restore();
+        },
+      };
+
+      function empty(canvasId, text) {
+        document.getElementById(canvasId).parentElement.innerHTML =
+          `<div class="empty">${text}</div>`;
+      }
+
+      function profileCharts(latest) {
+        const runs = PROFILES.map(([kind, label]) => [
+          label,
+          latest[kind],
+        ]).filter(([, r]) => r);
         if (runs.length === 0) {
-          canvas.parentElement.innerHTML =
-            '<div class="empty">No runs yet</div>';
+          empty("p95", "No runs yet");
+          empty("ux", "No runs yet");
           return;
         }
-        new Chart(canvas, {
-          type: "line",
+        // Login hashes a password (bcrypt) and has a 1.5 s budget, so it
+        // gets a line of text instead of stretching the axis for the APIs
+        const login = runs
+          .filter(([, r]) => r.measurements["load.p95.login"] != null)
+          .map(
+            ([label, r]) =>
+              `${label.split(" ·")[0]} ${ms(r.measurements["load.p95.login"])}`,
+          );
+        document.getElementById("login-note").textContent = login.length
+          ? `Login p95 (budget 1.5 s): ${login.join(" · ")}`
+          : "";
+        const shown = ENDPOINTS.filter(
+          ([e]) =>
+            e !== "login" &&
+            runs.some(([, r]) => r.measurements[`load.p95.${e}`] != null),
+        );
+        const budgetOf = (e) =>
+          runs
+            .map(([, r]) => r.measurements[`load.budget.${e}`])
+            .find((b) => b != null) ?? null;
+        const budgets = shown.map(([e]) => budgetOf(e));
+        const profileColours = [C(1), C(2), C(3)];
+
+        new Chart(document.getElementById("p95"), {
+          type: "bar",
+          plugins: [budgetTicks],
           data: {
-            labels: runs.map((r) => fmtDate(r.date)),
-            datasets: series.map(([label, key], i) => ({
+            labels: shown.map(([, label]) => label),
+            datasets: runs.map(([label, r], i) => ({
               label,
-              data: runs.map((r) => r.measurements[key] ?? null),
-              borderColor: SERIES[i % SERIES.length],
-              backgroundColor: SERIES[i % SERIES.length],
-              borderWidth: 2,
-              pointRadius: 2,
-              tension: 0.2,
-              spanGaps: true,
+              data: shown.map(([e]) => r.measurements[`load.p95.${e}`] ?? null),
+              backgroundColor: profileColours[i],
+              borderRadius: 4,
+              borderSkipped: "start",
+              categoryPercentage: 0.78,
+              barPercentage: 0.86,
             })),
           },
           options: {
+            indexAxis: "y",
             maintainAspectRatio: false,
-            interaction: { mode: "index", intersect: false },
+            interaction: { mode: "index", axis: "y", intersect: false },
             plugins: {
-              legend: {
-                position: "bottom",
-                labels: { boxWidth: 10, boxHeight: 10 },
-              },
+              budgetTicks: { budgets },
+              legend: { position: "bottom" },
               tooltip: {
                 callbacks: {
-                  label: (c) =>
-                    `${c.dataset.label}: ${c.parsed.y == null ? "–" : unit(c.parsed.y)}`,
+                  label: (c) => `${c.dataset.label}: ${ms(c.parsed.x)}`,
+                  footer: (items) => {
+                    const b = budgets[items[0].dataIndex];
+                    return b == null ? "" : `Budget: p95 < ${ms(b)}`;
+                  },
                 },
               },
             },
             scales: {
+              x: {
+                beginAtZero: true,
+                suggestedMax:
+                  Math.max(0, ...budgets.filter((b) => b != null)) * 1.1,
+                grid: { color: css("--grid") },
+                ticks: { callback: (v) => ms(v), maxRotation: 0 },
+              },
+              y: { grid: { display: false } },
+            },
+          },
+        });
+
+        const uxRuns = runs.filter(
+          ([, r]) => r.measurements["ux.idle.dashboard.dataReady"] != null,
+        );
+        if (uxRuns.length === 0) return empty("ux", "No UX measurements yet");
+        const idle = uxRuns.map(
+          ([, r]) => r.measurements["ux.idle.dashboard.dataReady"],
+        );
+        const load = uxRuns.map(
+          ([, r]) => r.measurements["ux.load.dashboard.dataReady"] ?? null,
+        );
+        new Chart(document.getElementById("ux"), {
+          type: "bar",
+          plugins: [slowdownLabels],
+          data: {
+            labels: uxRuns.map(([label]) => label),
+            datasets: [
+              {
+                label: "App idle",
+                data: idle,
+                backgroundColor: C(1),
+                borderRadius: 4,
+                borderSkipped: "start",
+              },
+              {
+                label: "Under load",
+                data: load,
+                backgroundColor: C(2),
+                borderRadius: 4,
+                borderSkipped: "start",
+              },
+            ],
+          },
+          options: {
+            maintainAspectRatio: false,
+            layout: { padding: { top: 24 } },
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              slowdownLabels: {
+                ratios: load.map((l, i) => (l == null ? null : l / idle[i])),
+              },
+              legend: { position: "bottom" },
+              tooltip: {
+                callbacks: {
+                  label: (c) =>
+                    `${c.dataset.label}: ${c.parsed.y == null ? "not measured (smoke runs idle only)" : ms(c.parsed.y)}`,
+                },
+              },
+            },
+            scales: {
+              x: { grid: { display: false } },
               y: {
                 beginAtZero: true,
-                ticks: { callback: (v) => unit(v) },
-                ...opts.y,
+                grid: { color: css("--grid") },
+                ticks: { callback: (v) => ms(v) },
               },
             },
           },
         });
       }
 
-      const ms = (v) => `${Math.round(v)} ms`;
-      const ENDPOINTS = [
-        "summary",
-        "expenses_list",
-        "incomes_list",
-        "dashboard_page",
-        "expense_create",
-        "login",
-      ];
+      function headline(stress) {
+        const el = document.getElementById("headline");
+        if (!stress) {
+          el.innerHTML =
+            '<div class="card"><div class="empty">No stress run yet</div></div>';
+          return;
+        }
+        const m = stress.measurements;
+        const endpoints = ENDPOINTS.filter(([e]) => m[`load.p95.${e}`] != null);
+        const withBudget = endpoints.filter(
+          ([e]) => m[`load.budget.${e}`] != null,
+        );
+        const within = withBudget.filter(
+          ([e]) => m[`load.p95.${e}`] < m[`load.budget.${e}`],
+        );
+        const slowest = endpoints
+          .filter(([e]) => e !== "login")
+          .sort((a, b) => m[`load.p95.${b[0]}`] - m[`load.p95.${a[0]}`])[0];
+        const idle = m["ux.idle.dashboard.dataReady"];
+        const load = m["ux.load.dashboard.dataReady"];
+        const ratio = idle && load ? load / idle : null;
+        const serverOk =
+          withBudget.length > 0 && within.length === withBudget.length;
+        el.innerHTML = `
+          <div class="card headline ${serverOk ? "good" : withBudget.length ? "bad" : ""}">
+            <div class="label">Server (k6, up to 140 virtual users)</div>
+            <div class="big">${
+              withBudget.length
+                ? `${within.length}/${withBudget.length} <small>endpoints within budget</small>`
+                : `${ms(m[`load.p95.${slowest[0]}`])} <small>slowest API p95</small>`
+            }</div>
+            <div class="sub">Slowest endpoint: ${slowest[1]}, p95 ${ms(m[`load.p95.${slowest[0]}`])}. Errors: ${((m["load.error_rate"] ?? 0) * 100).toFixed(2)}%.</div>
+          </div>
+          <div class="card headline ${ratio >= 4 ? "bad" : "good"}">
+            <div class="label">User (Playwright, during the same run)</div>
+            <div class="big">${ratio ? ratio.toFixed(1) : "–"}x <small>slower dashboard</small></div>
+            <div class="sub">Numbers on screen after ${ms(load)} under load, ${ms(idle)} idle.</div>
+          </div>
+          <div class="card headline ${stress.status === "passed" ? "good" : "bad"}">
+            <div class="label">Gate verdict</div>
+            <div class="big" style="margin-bottom:6px">${pill(stress.status)}</div>
+            <div class="sub">${
+              serverOk && ratio >= 4
+                ? "Every server budget passed; only the browser layer caught it."
+                : "Both layers judged together."
+            } ${fmtTime(stress.date)} · ${runLink(stress)}</div>
+          </div>`;
+      }
+
+      function vitals(run) {
+        const note = document.getElementById("vitals-note");
+        const el = document.getElementById("vitals");
+        if (!run) {
+          note.textContent = "No nightly load run yet.";
+          return;
+        }
+        const m = run.measurements;
+        note.innerHTML = `Medians of 5 cold page loads, and Lighthouse (desktop), with the app idle → under 30 virtual users. ${fmtTime(run.date)} · ${runLink(run)}`;
+        const score = (page, phase) => {
+          const v = m[`lh.${phase}.${page}.score`];
+          if (v == null) return "";
+          const p = Math.round(v * 100);
+          const ring =
+            p >= 90 ? css("--pass") : p >= 50 ? css("--warn") : css("--fail");
+          return `<div class="ring" style="--p:${p};--ring:${ring}" title="Lighthouse ${phase}">${p}</div>`;
+        };
+        const pair = (id, fmt) =>
+          `${fmt(m[`ux.idle.${id}`])} <small>→ ${fmt(m[`ux.load.${id}`])}</small>`;
+        const cls = (v) => (v == null ? "–" : v.toFixed(2));
+        el.innerHTML = `
+          <div class="vital"><div class="label">Lighthouse: dashboard</div>
+            <div class="score" style="margin-top:8px">${score("dashboard", "idle")}${score("dashboard", "load")}</div>
+            <div class="sub" style="margin-top:6px">idle · under load</div></div>
+          <div class="vital"><div class="label">Lighthouse: login</div>
+            <div class="score" style="margin-top:8px">${score("login", "idle")}${score("login", "load")}</div>
+            <div class="sub" style="margin-top:6px">idle · under load</div></div>
+          <div class="vital"><div class="label">Dashboard data ready</div>
+            <div class="big">${pair("dashboard.dataReady", ms)}</div><div class="sub">budget: 1 s idle, 2 s loaded</div></div>
+          <div class="vital"><div class="label">Dashboard LCP</div>
+            <div class="big">${pair("dashboard.lcp", ms)}</div><div class="sub">good: under 2.5 s</div></div>
+          <div class="vital"><div class="label">Login LCP</div>
+            <div class="big">${pair("login.lcp", ms)}</div><div class="sub">good: under 2.5 s</div></div>
+          <div class="vital"><div class="label">Dashboard CLS</div>
+            <div class="big">${pair("dashboard.cls", cls)}</div><div class="sub">good: under 0.1</div></div>`;
+        if (!run.measurements["lh.idle.dashboard.score"]) {
+          el.querySelectorAll(".vital")[0].remove();
+        }
+      }
+
+      const trendCharts = [];
+      function trends(history, kind) {
+        trendCharts.splice(0).forEach((c) => c.destroy());
+        const runs = history.filter(
+          (r) =>
+            `${r.target}-${r.profile}` === kind &&
+            r.measurements["load.p95.summary"] != null,
+        );
+        const resetCanvas = (id) => {
+          const old = document.querySelector(`[data-chart="${id}"]`);
+          old.innerHTML = `<canvas id="${id}"></canvas>`;
+          return document.getElementById(id);
+        };
+        const p95Canvas = resetCanvas("trend-p95");
+        const uxCanvas = resetCanvas("trend-ux");
+        if (runs.length < 2) {
+          const text =
+            runs.length === 0
+              ? "No runs of this kind yet."
+              : "One run so far. The trend line starts with the next run.";
+          p95Canvas.parentElement.innerHTML = `<div class="empty">${text}</div>`;
+          uxCanvas.parentElement.innerHTML = `<div class="empty">${text}</div>`;
+          return;
+        }
+        const labels = runs.map((r) => fmtTime(r.date));
+        const line = (label, data, colour) => ({
+          label,
+          data,
+          borderColor: colour,
+          backgroundColor: colour,
+          borderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBorderColor: css("--card"),
+          pointBorderWidth: 2,
+          tension: 0.25,
+          spanGaps: true,
+        });
+        const options = {
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { position: "bottom" },
+            tooltip: {
+              callbacks: {
+                label: (c) => `${c.dataset.label}: ${ms(c.parsed.y)}`,
+                afterTitle: (items) => STATUS[runs[items[0].dataIndex].status],
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { maxRotation: 0, autoSkip: true },
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: css("--grid") },
+              ticks: { callback: (v) => ms(v) },
+            },
+          },
+        };
+        // Login is an order of magnitude slower (bcrypt), so it is left out
+        // here to keep the API lines readable; the bar chart above shows it
+        const endpoints = ENDPOINTS.filter(
+          ([e]) =>
+            e !== "login" &&
+            runs.some((r) => r.measurements[`load.p95.${e}`] != null),
+        );
+        trendCharts.push(
+          new Chart(p95Canvas, {
+            type: "line",
+            data: {
+              labels,
+              datasets: endpoints.map(([e, label, slot]) =>
+                line(
+                  label,
+                  runs.map((r) => r.measurements[`load.p95.${e}`] ?? null),
+                  C(slot),
+                ),
+              ),
+            },
+            options,
+          }),
+          new Chart(uxCanvas, {
+            type: "line",
+            data: {
+              labels,
+              datasets: [
+                line(
+                  "App idle",
+                  runs.map(
+                    (r) =>
+                      r.measurements["ux.idle.dashboard.dataReady"] ?? null,
+                  ),
+                  C(1),
+                ),
+                line(
+                  "Under load",
+                  runs.map(
+                    (r) =>
+                      r.measurements["ux.load.dashboard.dataReady"] ?? null,
+                  ),
+                  C(2),
+                ),
+              ].filter((d) => d.data.some((v) => v != null)),
+            },
+            options,
+          }),
+        );
+      }
 
       fetch("history.json")
         .then((r) => (r.ok ? r.json() : []))
@@ -328,80 +859,74 @@
         .then((history) => {
           const of = (kind) =>
             history.filter((r) => `${r.target}-${r.profile}` === kind);
+          const latest = Object.fromEntries(
+            Object.keys(KINDS).map((kind) => [kind, of(kind).at(-1)]),
+          );
 
-          const tiles = document.getElementById("tiles");
-          for (const [kind, label] of Object.entries(KINDS)) {
-            const last = of(kind).at(-1);
-            tiles.insertAdjacentHTML(
-              "beforeend",
-              `
-        <div class="tile">
-          <div class="kind">${label}</div>
-          <div class="status ${last ? last.status : "no-data"}">${last ? STATUS[last.status] : "No runs yet"}</div>
-          <div class="when">${last ? `${fmtTime(last.date)}${last.runUrl ? ` · <a href="${last.runUrl}">run</a>` : ""}` : "&nbsp;"}</div>
-        </div>`,
-            );
+          document.getElementById("tiles").innerHTML = Object.entries(KINDS)
+            .map(([kind, label]) => {
+              const last = latest[kind];
+              return `
+              <div class="card tile">
+                <div class="top"><span class="label">${label}</span>${pill(last ? last.status : "no-data")}</div>
+                <div class="when">${last ? `${fmtTime(last.date)} · ${of(kind).length} run${of(kind).length === 1 ? "" : "s"} · ${runLink(last)}` : "No runs yet"}</div>
+              </div>`;
+            })
+            .join("");
+
+          headline(latest["local-stress"]);
+          profileCharts(latest);
+          vitals(latest["local-load"]);
+
+          // Trend tabs: start on the kind with the most history
+          const tabs = document.getElementById("trend-tabs");
+          const kinds = Object.keys(KINDS);
+          let selected = [...kinds].sort(
+            (a, b) => of(b).length - of(a).length,
+          )[0];
+          for (const id of ["trend-p95", "trend-ux"]) {
+            document.getElementById(id).parentElement.dataset.chart = id;
           }
-
-          const load = of("local-load");
-          lineChart(
-            "p95",
-            load,
-            ENDPOINTS.map((e) => [e, `load.p95.${e}`]),
-            ms,
-          );
-          lineChart(
-            "ux",
-            load,
-            [
-              ["Idle", "ux.idle.dashboard.dataReady"],
-              ["Under load", "ux.load.dashboard.dataReady"],
-            ],
-            ms,
-          );
-          lineChart(
-            "lh",
-            load,
-            [
-              ["Dashboard, idle", "lh.idle.dashboard.score"],
-              ["Dashboard, under load", "lh.load.dashboard.score"],
-              ["Login, idle", "lh.idle.login.score"],
-              ["Login, under load", "lh.load.login.score"],
-            ],
-            (v) => Math.round(v * 100),
-            { min: 0, max: 1 },
-          );
-          lineChart(
-            "prod",
-            of("vercel-smoke"),
-            ["summary", "expenses_list", "dashboard_page", "login"].map((e) => [
-              e,
-              `load.p95.${e}`,
-            ]),
-            ms,
-          );
+          const renderTabs = () => {
+            tabs.innerHTML = kinds
+              .map(
+                (k) =>
+                  `<button type="button" data-kind="${k}" aria-pressed="${k === selected}">${KINDS[k]} (${of(k).length})</button>`,
+              )
+              .join("");
+            trends(history, selected);
+          };
+          tabs.addEventListener("click", (e) => {
+            const kind = e.target.closest("button")?.dataset.kind;
+            if (kind && kind !== selected) {
+              selected = kind;
+              renderTabs();
+            }
+          });
+          renderTabs();
 
           const rows = history
             .slice(-30)
             .reverse()
             .map(
               (r) => `
-      <tr>
-        <td>${fmtTime(r.date)}</td>
-        <td>${r.target}</td>
-        <td>${r.profile}</td>
-        <td class="${r.status}">${STATUS[r.status] ?? r.status}</td>
-        <td>${r.measurements["load.p95.summary"] != null ? ms(r.measurements["load.p95.summary"]) : "–"}</td>
-        <td>${r.measurements["ux.idle.dashboard.dataReady"] != null ? ms(r.measurements["ux.idle.dashboard.dataReady"]) : "–"}</td>
-        <td>${r.appCommit ? `<a href="https://github.com/BRLorena/finance_app/commit/${r.appCommit}">${r.appCommit.slice(0, 7)}</a>` : "–"}</td>
-        <td>${r.runUrl ? `<a href="${r.runUrl}">logs</a>` : "–"}</td>
-      </tr>`,
+              <tr>
+                <td>${fmtTime(r.date)}</td>
+                <td>${KINDS[`${r.target}-${r.profile}`] ?? `${r.target} ${r.profile}`}</td>
+                <td>${pill(r.status)}</td>
+                <td class="num">${ms(r.measurements["load.p95.summary"])}</td>
+                <td class="num">${ms(r.measurements["ux.idle.dashboard.dataReady"])}</td>
+                <td class="num">${ms(r.measurements["ux.load.dashboard.dataReady"])}</td>
+                <td>${r.appCommit ? `<a href="https://github.com/BRLorena/finance_app/commit/${r.appCommit}">${r.appCommit.slice(0, 7)}</a>` : "–"}</td>
+                <td>${r.runUrl ? `<a href="${r.runUrl}">logs</a>` : "–"}</td>
+              </tr>`,
             )
             .join("");
           document.getElementById("runs").innerHTML = `
-      <thead><tr><th>When</th><th>Target</th><th>Profile</th><th>Verdict</th>
-      <th>Summary p95</th><th>Dashboard data (idle)</th><th>App commit</th><th>Run</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="8" class="empty">No runs yet</td></tr>'}</tbody>`;
+            <thead><tr><th>When</th><th>Run</th><th>Verdict</th>
+            <th class="num">Summary API p95</th><th class="num">Data ready, idle</th><th class="num">Data ready, loaded</th>
+            <th>App commit</th><th>Logs</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="8" class="empty">No runs yet</td></tr>'}</tbody>`;
           document.getElementById("footer").textContent =
             `${history.length} runs recorded. Baselines update only from passing runs.`;
         });
