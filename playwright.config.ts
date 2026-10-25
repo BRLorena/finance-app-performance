@@ -15,6 +15,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.BASE_URL ?? "http://localhost:3300",
     ...devices["Desktop Chrome"],
+    screenshot: "only-on-failure",
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },

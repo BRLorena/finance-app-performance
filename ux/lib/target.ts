@@ -6,11 +6,14 @@ export function uxPhase(): UxPhase {
   return process.env.UX_PHASE === "load" ? "load" : "idle";
 }
 
-/** A deployed target passes its own account; locally it's the seeded one */
+/**
+ * A deployed target passes its own account; locally it's the seeded one.
+ * `||`, not `??`: CI sets the variables to "" for local runs.
+ */
 export function uxCredentials() {
   return {
-    email: process.env.PERF_EMAIL ?? UX_USER_EMAIL,
-    password: process.env.PERF_PASSWORD ?? LOCAL_PASSWORD,
+    email: process.env.PERF_EMAIL || UX_USER_EMAIL,
+    password: process.env.PERF_PASSWORD || LOCAL_PASSWORD,
   };
 }
 

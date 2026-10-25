@@ -77,32 +77,49 @@ jobs:
 
       - uses: grafana/setup-k6-action@v1
 
-      - name: Cache Playwright browsers
+      # Restore and save separately, so a failing run still saves the cache.
+      # ubuntu-latest already has Chromium's system libraries: no apt step.
+      - name: Restore Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
           key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Chromium
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium --with-deps
-      - name: Install Chromium system deps
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+        run: npx playwright install chromium
+      - name: Save Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.pw-cache.outputs.cache-primary-key }}
 
       # ── local target: the app and its database, built from finance_app ──
-      - uses: docker/setup-buildx-action@v3
+      # The built image is cached whole, keyed by the finance_app commit:
+      # a hit is one download + docker load, a full build only happens
+      # when finance_app (or the Dockerfile) changes.
+      - name: Restore finance_app image
+        id: img-cache
         if: steps.cfg.outputs.target == 'local'
-      - name: Build finance_app
-        if: steps.cfg.outputs.target == 'local'
-        uses: docker/build-push-action@v6
+        uses: actions/cache/restore@v4
         with:
-          context: app
-          load: true
-          tags: finance-app:local
-          build-args: APP_REF=${{ steps.cfg.outputs.app_sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          path: /tmp/finance-app.tar.zst
+          key: finance-app-${{ steps.cfg.outputs.app_sha }}-${{ hashFiles('app/Dockerfile') }}
+      - name: Load cached image
+        if: steps.cfg.outputs.target == 'local' && steps.img-cache.outputs.cache-hit == 'true'
+        run: zstd -dc /tmp/finance-app.tar.zst | docker load
+      - name: Build finance_app
+        if: steps.cfg.outputs.target == 'local' && steps.img-cache.outputs.cache-hit != 'true'
+        run: |
+          docker build -t finance-app:local --build-arg APP_REF=${{ steps.cfg.outputs.app_sha }} app
+          docker save finance-app:local | zstd -T0 -3 -q -o /tmp/finance-app.tar.zst
+      - name: Save finance_app image
+        if: steps.cfg.outputs.target == 'local' && steps.img-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/finance-app.tar.zst
+          key: ${{ steps.img-cache.outputs.cache-primary-key }}
       - name: Start app and database
         if: steps.cfg.outputs.target == 'local'
         run: docker compose up -d --wait --no-build
@@ -155,6 +172,7 @@ jobs:
           # .auth holds the UX session cookie: never upload it
           path: |
             results/
+            test-results/
             !results/.auth/
           retention-days: 14
 
