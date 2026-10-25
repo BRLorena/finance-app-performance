@@ -24,8 +24,10 @@ on:
         description: finance_app branch, tag or commit to build (local only)
         default: master
 
+# GitHub keeps one pending run per group, so a manual or scheduled run of
+# one kind must not share a group with another kind (it would be cancelled)
 concurrency:
-  group: perf-${{ github.ref }}
+  group: perf-${{ github.ref }}-${{ github.event_name }}-${{ github.event.schedule }}-${{ github.event.inputs.target }}-${{ github.event.inputs.profile }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -201,10 +203,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The artifact holds results/ and test-results/ at its root
       - uses: actions/download-artifact@v4
         with:
           name: perf-results
-          path: results
+          path: .
       - name: Download the live site's data
         run: |
           mkdir -p previous-site
