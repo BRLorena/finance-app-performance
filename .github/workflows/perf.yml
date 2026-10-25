@@ -160,6 +160,7 @@ jobs:
           # .auth holds the UX session cookie: never upload it
           path: |
             results/
+            test-results/
             !results/.auth/
           retention-days: 14
 
