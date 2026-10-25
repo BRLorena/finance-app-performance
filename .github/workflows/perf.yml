@@ -203,10 +203,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The artifact holds results/ and test-results/ at its root
       - uses: actions/download-artifact@v4
         with:
           name: perf-results
-          path: results
+          path: .
       - name: Download the live site's data
         run: |
           mkdir -p previous-site
