@@ -78,20 +78,38 @@ The verdict is posted as a PR comment and the job summary. Each metric and its b
 
 ## Results
 
-| Run                        | Result                                                                                                                                                                                                |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Load** (30 VUs, 3 min)   | All budgets met. p95: summary 35 ms, lists 150–175 ms, login 502 ms (bcrypt). 0 errors, 0 rate-limited requests                                                                                       |
-| **UX under load**          | Dashboard data arrives in 225 ms under load vs 212 ms idle (1.06x). Lighthouse 100 on both pages, idle and under load                                                                                 |
-| **Stress** (up to 140 VUs) | Expense and income lists cross their 400 ms budget (p95 620–675 ms), and so does adding an expense (749 ms). The heavier `/api/summary` stays at 335 ms. The gate fails on exactly those three checks |
-| **Rate limit**             | A 40-request burst gets 30 `200`s, then only `429`s, with `X-RateLimit-Limit: 30` and `X-RateLimit-Remaining: 0`                                                                                      |
+All numbers are from GitHub Actions (a 4-vCPU `ubuntu-latest` runner hosting the app, Postgres, k6 and Chromium at once). Treat them as a comparison between runs, not capacity figures.
 
-These numbers come from a local run (Apple M1, app, database, k6 and Chromium on one machine), so treat them as a comparison between runs, not as capacity figures. The [dashboard](https://brlorena.github.io/finance-app-performance/) has the CI numbers over time.
+### The server passed. The user still waited 4x longer.
 
-**Findings for `finance_app`** (in [docs/limitations.md](docs/limitations.md)):
+In the [stress run](https://github.com/BRLorena/finance-app-performance/actions/runs/40185693474), with up to 140 virtual users, **every server-side budget passed**: every endpoint p95 stayed under its threshold, with no errors. Measured from a real browser at the same time, the dashboard got four times slower:
 
-- The lists degrade before the summary does under stress. The summary runs 12 aggregate queries, so a likely place to look is how the list endpoints query and paginate. Not investigated yet.
-- The rate limiter keeps its counters in each server instance's memory. On Vercel, each serverless instance counts separately, so the limit isn't enforced across instances.
-- The login (credentials callback) has no rate limit. Only registration has one.
+| Dashboard                                 | Idle   | Under stress |                                           |
+| ----------------------------------------- | ------ | ------------ | ----------------------------------------- |
+| Data ready (until `/api/summary` arrives) | 205 ms | 829 ms       | **4.04x**: over the 4x limit, gate failed |
+| LCP                                       | 108 ms | 564 ms       | 5.2x                                      |
+| `/api/summary` p95, from k6               |        | 157 ms       | under its 500 ms budget                   |
+
+A load test alone would have reported this run as green. The dashboard waits on several requests one after another: the HTML (383 ms p95 under stress), its scripts, then `/api/summary`. Each passes its own budget, but the user waits for all of them in sequence. Only a browser measuring the whole page sees that sum, which is the reason for running both layers together.
+
+### Everything else
+
+| Run                                                                                       | Result                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Load** (30 VUs, 3 min, nightly)                                                         | All budgets met. Endpoint p95s 8–22 ms, login 331 ms (bcrypt, cost 12). 25 requests/s, 0 errors, 0 rate-limited requests                                                                                           |
+| **UX under load** (30 VUs)                                                                | No measurable degradation: dashboard data in 157 ms under load vs 164 ms idle. Lighthouse 100 on both pages, idle and under load                                                                                   |
+| **Regression demo** ([PR #4](https://github.com/BRLorena/finance-app-performance/pull/4)) | A patch adds 300 ms to `/api/summary`. 319 ms is under its 500 ms budget, but the gate compares it with the baseline (13 ms) and fails it. Dashboard data ready regresses too (226 → 495 ms). The merge is blocked |
+| **Rate limit**                                                                            | A 40-request burst gets 30 `200`s, then only `429`s, with `X-RateLimit-Limit: 30` and `X-RateLimit-Remaining: 0`                                                                                                   |
+| **Production smoke** (Vercel, weekly)                                                     | p95: summary 101 ms, lists 103 ms, login 469 ms. Dashboard data ready in 436 ms from the US runner                                                                                                                 |
+| **CI time**                                                                               | 2m17s for a PR (about 80s of it is the measurement itself), down from 5m20s on the first run                                                                                                                       |
+
+### Findings for `finance_app`
+
+Also in [docs/limitations.md](docs/limitations.md):
+
+- **Under stress, the list endpoints slow down before the summary does,** both in CI (lists 351–377 ms vs summary 157 ms) and locally (lists 620–675 ms vs summary 335 ms). That's despite the summary running 12 aggregate queries per request. A likely place to look is how the list endpoints query and count. Not investigated yet.
+- **The rate limiter counts per instance.** It keeps its counters in each server instance's memory, so on Vercel each serverless instance counts separately and the limit isn't enforced across instances.
+- **Login has no rate limit.** Only registration has one; the credentials callback accepts unlimited attempts.
 
 ---
 
@@ -115,7 +133,8 @@ Load testing the live URL would use up the free tiers of Vercel and Neon, measur
 | Weekly (Monday 06:00 UTC) | Vercel, read-only | `smoke`                            | idle                   |
 | Manual                    | either            | any profile, any `finance_app` ref | depends on the profile |
 
-- The `finance_app` Docker image is built with the GitHub Actions layer cache, and Playwright's browsers are cached.
+- **Caching:** the finished `finance_app` image (two-stage build, 1.08 GB, no dev dependencies) is cached whole, keyed by the app commit and everything under `app/`, so a cache hit is one download plus `docker load`. Playwright's browsers are cached too, and both caches are saved even when the gate fails.
+- **Merge gate:** `Performance gate` is a required check on `main`, so a PR that fails or can't be measured can't merge.
 - Every run uploads its results (k6 summary, UX samples, Lighthouse HTML reports, verdict) as an artifact. The session cookie is excluded.
 - Runs on `main` publish to [GitHub Pages](https://brlorena.github.io/finance-app-performance/): the run is appended to `history.json`, and a passing run becomes the new baseline. History lives on Pages, not in git.
 
@@ -141,6 +160,8 @@ npm run check         # tsc (Node + k6), ESLint, Prettier
 npm run app:down      # stop and delete the database
 ```
 
+To measure a change to `finance_app` before it's pushed there, put its diff in `app/patches/*.patch`: it's applied before the build ([details](app/patches/README.md)).
+
 Results land in `results/`: `verdict.md`, `k6-summary.json`, `ux-*.json` and the Lighthouse HTML reports.
 
 ---
@@ -149,6 +170,7 @@ Results land in `results/`: `verdict.md`, `k6-summary.json`, `ux-*.json` and the
 
 ```
 app/Dockerfile            Builds finance_app at any git ref, production mode
+app/patches/              Optional app changes to measure before they're pushed
 docker-compose.yml        The system under test: app + Postgres
 config/users.ts           Test accounts shared by the seed, k6 and Playwright
 scripts/
