@@ -1,0 +1,206 @@
+name: Performance
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *" # nightly: full load + UX under load, local build
+    - cron: "0 6 * * 1" # weekly: gentle read-only smoke on the Vercel app
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: k6 profile
+        type: choice
+        options: [smoke, load, stress, spike]
+        default: load
+      target:
+        description: "local: Docker build in CI. vercel: the live app (smoke only, read-only)"
+        type: choice
+        options: [local, vercel]
+        default: local
+      app_ref:
+        description: finance_app branch, tag or commit to build (local only)
+        default: master
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PAGES_URL: https://brlorena.github.io/finance-app-performance
+  VERCEL_URL: https://finance-app-nine-dusky.vercel.app
+
+jobs:
+  perf:
+    name: Performance gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve run settings
+        id: cfg
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          IN_PROFILE: ${{ github.event.inputs.profile }}
+          IN_TARGET: ${{ github.event.inputs.target }}
+          IN_REF: ${{ github.event.inputs.app_ref }}
+        run: |
+          target=local profile=smoke
+          if [ "$EVENT" = schedule ] && [ "$SCHEDULE" = "0 6 * * 1" ]; then target=vercel
+          elif [ "$EVENT" = schedule ]; then profile=load
+          elif [ "$EVENT" = workflow_dispatch ]; then target=$IN_TARGET profile=$IN_PROFILE
+          fi
+          # The live app only ever gets the gentle, read-only smoke profile
+          [ "$target" = vercel ] && profile=smoke
+          ref=${IN_REF:-master}
+          sha=$(git ls-remote https://github.com/BRLorena/finance_app.git "$ref" | head -1 | cut -f1)
+          [ -z "$sha" ] && sha=$ref  # a commit sha passed directly
+          echo "target=$target profile=$profile app=$ref@$sha"
+          {
+            echo "target=$target"
+            echo "profile=$profile"
+            echo "app_sha=$sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - uses: grafana/setup-k6-action@v1
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+      - name: Install Chromium system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # ── local target: the app and its database, built from finance_app ──
+      - uses: docker/setup-buildx-action@v3
+        if: steps.cfg.outputs.target == 'local'
+      - name: Build finance_app
+        if: steps.cfg.outputs.target == 'local'
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          load: true
+          tags: finance-app:local
+          build-args: APP_REF=${{ steps.cfg.outputs.app_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start app and database
+        if: steps.cfg.outputs.target == 'local'
+        run: docker compose up -d --wait --no-build
+      - name: Seed test users
+        if: steps.cfg.outputs.target == 'local'
+        run: npm run seed
+
+      - name: Download baseline
+        env:
+          KIND: ${{ steps.cfg.outputs.target }}-${{ steps.cfg.outputs.profile }}
+        run: |
+          curl -fsSL "$PAGES_URL/baseline-$KIND.json" -o baseline.json \
+            && echo "Using the baseline from the last passing $KIND run" \
+            || { rm -f baseline.json; echo "No baseline for $KIND yet"; }
+
+      - name: Run performance pass
+        env:
+          PERF_TARGET: ${{ steps.cfg.outputs.target }}
+          APP_COMMIT: ${{ steps.cfg.outputs.target == 'local' && steps.cfg.outputs.app_sha || '' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BASE_URL: ${{ steps.cfg.outputs.target == 'vercel' && env.VERCEL_URL || 'http://localhost:3300' }}
+          READ_ONLY: ${{ steps.cfg.outputs.target == 'vercel' }}
+          BUDGET_SCALE: ${{ steps.cfg.outputs.target == 'vercel' && '3' || '1' }}
+          PERF_EMAIL: ${{ steps.cfg.outputs.target == 'vercel' && secrets.VERCEL_PERF_EMAIL || '' }}
+          PERF_PASSWORD: ${{ steps.cfg.outputs.target == 'vercel' && secrets.VERCEL_PERF_PASSWORD || '' }}
+        run: |
+          args="--profile ${{ steps.cfg.outputs.profile }}"
+          [ -f baseline.json ] && args="$args --baseline baseline.json"
+          npm run perf -- $args
+
+      - name: Job summary
+        if: always()
+        run: cat results/verdict.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "No verdict" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on the PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: perf-gate
+          path: results/verdict.md
+
+      - name: App logs
+        if: failure() && steps.cfg.outputs.target == 'local'
+        run: docker compose logs app --tail 200
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf-results
+          # .auth holds the UX session cookie: never upload it
+          path: |
+            results/
+            !results/.auth/
+          retention-days: 14
+
+  publish:
+    name: Publish dashboard
+    needs: perf
+    # main only, never from PRs; failed runs are published too (history)
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      github.event_name != 'pull_request' &&
+      (needs.perf.result == 'success' || needs.perf.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: perf-results
+          path: results
+      - name: Download the live site's data
+        run: |
+          mkdir -p previous-site
+          if curl -fsSL "$PAGES_URL/files.json" -o files.json; then
+            for f in $(node -e 'console.log(require("./files.json").join("\n"))'); do
+              mkdir -p "previous-site/$(dirname "$f")"
+              curl -fsSL "$PAGES_URL/$f" -o "previous-site/$f" || echo "missing $f"
+            done
+          else
+            echo "No live site yet"
+          fi
+      - run: npx tsx scripts/publish.ts results previous-site site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

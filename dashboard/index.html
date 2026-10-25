@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finance App Performance</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --bg: #f7f7f8;
+        --card: #ffffff;
+        --text: #1d1d22;
+        --muted: #5f6170;
+        --border: #e2e3e8;
+        --pass: #1f7a3a;
+        --fail: #b42318;
+        --warn: #a15c00;
+        --none: #6b6e7b;
+        --s1: #2563eb;
+        --s2: #d9480f;
+        --s3: #0f766e;
+        --s4: #9333ea;
+        --s5: #a16207;
+        --s6: #be185d;
+        --s7: #475569;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111216;
+          --card: #1a1b21;
+          --text: #ececf1;
+          --muted: #a0a3b1;
+          --border: #2c2e37;
+          --pass: #4ade80;
+          --fail: #f87171;
+          --warn: #fbbf24;
+          --none: #9ca3af;
+          --s1: #60a5fa;
+          --s2: #fb923c;
+          --s3: #2dd4bf;
+          --s4: #c084fc;
+          --s5: #facc15;
+          --s6: #f472b6;
+          --s7: #94a3b8;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 16px 48px;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      p.lead {
+        color: var(--muted);
+        margin: 0 0 24px;
+        max-width: 760px;
+      }
+      a {
+        color: var(--s1);
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .tile,
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .tile .kind {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tile .status {
+        font-size: 20px;
+        font-weight: 650;
+        margin: 2px 0;
+      }
+      .tile .when {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+        gap: 16px;
+      }
+      @media (max-width: 520px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card p {
+        color: var(--muted);
+        margin: 0 0 12px;
+        font-size: 13px;
+      }
+      .chart {
+        position: relative;
+        height: 260px;
+      }
+      .empty {
+        color: var(--muted);
+        font-size: 14px;
+        padding: 40px 0;
+        text-align: center;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px 6px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      .passed {
+        color: var(--pass);
+      }
+      .failed {
+        color: var(--fail);
+      }
+      .unstable {
+        color: var(--warn);
+      }
+      .no-data {
+        color: var(--none);
+      }
+      footer {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Finance App performance</h1>
+      <p class="lead">
+        Server load measured with k6 and user experience measured with
+        Playwright + Lighthouse, with the app idle and under load, judged by one
+        gate. Source:
+        <a href="https://github.com/BRLorena/finance-app-performance"
+          >BRLorena/finance-app-performance</a
+        >.
+      </p>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="grid">
+        <section class="card">
+          <h2>Endpoint p95 under load</h2>
+          <p>
+            Nightly <code>load</code> profile (30 virtual users) on a local
+            production build.
+          </p>
+          <div class="chart"><canvas id="p95"></canvas></div>
+        </section>
+        <section class="card">
+          <h2>Dashboard data ready: idle vs under load</h2>
+          <p>
+            Median time until the dashboard's numbers arrive, from navigation
+            start.
+          </p>
+          <div class="chart"><canvas id="ux"></canvas></div>
+        </section>
+        <section class="card">
+          <h2>Lighthouse performance score</h2>
+          <p>Desktop preset, nightly runs, with the app idle and under load.</p>
+          <div class="chart"><canvas id="lh"></canvas></div>
+        </section>
+        <section class="card">
+          <h2>Production smoke (Vercel)</h2>
+          <p>
+            Weekly read-only check: 3 virtual users for 50 seconds against the
+            live app.
+          </p>
+          <div class="chart"><canvas id="prod"></canvas></div>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top: 16px">
+        <h2>Recent runs</h2>
+        <div class="table-wrap"><table id="runs"></table></div>
+      </section>
+
+      <footer id="footer"></footer>
+    </main>
+
+    <script>
+      const css = (name) =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim();
+      const SERIES = [
+        "--s1",
+        "--s2",
+        "--s3",
+        "--s4",
+        "--s5",
+        "--s6",
+        "--s7",
+      ].map(css);
+      const STATUS = {
+        passed: "Passed",
+        failed: "Failed",
+        unstable: "Unstable",
+        "no-data": "No data",
+      };
+      const KINDS = {
+        "local-load": "Nightly load (local)",
+        "local-smoke": "Smoke (local, PRs and main)",
+        "vercel-smoke": "Production smoke (Vercel)",
+      };
+
+      Chart.defaults.color = css("--muted");
+      Chart.defaults.borderColor = css("--border");
+      Chart.defaults.font.family = "system-ui, -apple-system, sans-serif";
+
+      const fmtDate = (iso) =>
+        new Date(iso).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        });
+      const fmtTime = (iso) =>
+        new Date(iso).toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+      function lineChart(id, runs, series, unit, opts = {}) {
+        const canvas = document.getElementById(id);
+        if (runs.length === 0) {
+          canvas.parentElement.innerHTML =
+            '<div class="empty">No runs yet</div>';
+          return;
+        }
+        new Chart(canvas, {
+          type: "line",
+          data: {
+            labels: runs.map((r) => fmtDate(r.date)),
+            datasets: series.map(([label, key], i) => ({
+              label,
+              data: runs.map((r) => r.measurements[key] ?? null),
+              borderColor: SERIES[i % SERIES.length],
+              backgroundColor: SERIES[i % SERIES.length],
+              borderWidth: 2,
+              pointRadius: 2,
+              tension: 0.2,
+              spanGaps: true,
+            })),
+          },
+          options: {
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { boxWidth: 10, boxHeight: 10 },
+              },
+              tooltip: {
+                callbacks: {
+                  label: (c) =>
+                    `${c.dataset.label}: ${c.parsed.y == null ? "–" : unit(c.parsed.y)}`,
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { callback: (v) => unit(v) },
+                ...opts.y,
+              },
+            },
+          },
+        });
+      }
+
+      const ms = (v) => `${Math.round(v)} ms`;
+      const ENDPOINTS = [
+        "summary",
+        "expenses_list",
+        "incomes_list",
+        "dashboard_page",
+        "expense_create",
+        "login",
+      ];
+
+      fetch("history.json")
+        .then((r) => (r.ok ? r.json() : []))
+        .catch(() => [])
+        .then((history) => {
+          const of = (kind) =>
+            history.filter((r) => `${r.target}-${r.profile}` === kind);
+
+          const tiles = document.getElementById("tiles");
+          for (const [kind, label] of Object.entries(KINDS)) {
+            const last = of(kind).at(-1);
+            tiles.insertAdjacentHTML(
+              "beforeend",
+              `
+        <div class="tile">
+          <div class="kind">${label}</div>
+          <div class="status ${last ? last.status : "no-data"}">${last ? STATUS[last.status] : "No runs yet"}</div>
+          <div class="when">${last ? `${fmtTime(last.date)}${last.runUrl ? ` · <a href="${last.runUrl}">run</a>` : ""}` : "&nbsp;"}</div>
+        </div>`,
+            );
+          }
+
+          const load = of("local-load");
+          lineChart(
+            "p95",
+            load,
+            ENDPOINTS.map((e) => [e, `load.p95.${e}`]),
+            ms,
+          );
+          lineChart(
+            "ux",
+            load,
+            [
+              ["Idle", "ux.idle.dashboard.dataReady"],
+              ["Under load", "ux.load.dashboard.dataReady"],
+            ],
+            ms,
+          );
+          lineChart(
+            "lh",
+            load,
+            [
+              ["Dashboard, idle", "lh.idle.dashboard.score"],
+              ["Dashboard, under load", "lh.load.dashboard.score"],
+              ["Login, idle", "lh.idle.login.score"],
+              ["Login, under load", "lh.load.login.score"],
+            ],
+            (v) => Math.round(v * 100),
+            { min: 0, max: 1 },
+          );
+          lineChart(
+            "prod",
+            of("vercel-smoke"),
+            ["summary", "expenses_list", "dashboard_page", "login"].map((e) => [
+              e,
+              `load.p95.${e}`,
+            ]),
+            ms,
+          );
+
+          const rows = history
+            .slice(-30)
+            .reverse()
+            .map(
+              (r) => `
+      <tr>
+        <td>${fmtTime(r.date)}</td>
+        <td>${r.target}</td>
+        <td>${r.profile}</td>
+        <td class="${r.status}">${STATUS[r.status] ?? r.status}</td>
+        <td>${r.measurements["load.p95.summary"] != null ? ms(r.measurements["load.p95.summary"]) : "–"}</td>
+        <td>${r.measurements["ux.idle.dashboard.dataReady"] != null ? ms(r.measurements["ux.idle.dashboard.dataReady"]) : "–"}</td>
+        <td>${r.appCommit ? `<a href="https://github.com/BRLorena/finance_app/commit/${r.appCommit}">${r.appCommit.slice(0, 7)}</a>` : "–"}</td>
+        <td>${r.runUrl ? `<a href="${r.runUrl}">logs</a>` : "–"}</td>
+      </tr>`,
+            )
+            .join("");
+          document.getElementById("runs").innerHTML = `
+      <thead><tr><th>When</th><th>Target</th><th>Profile</th><th>Verdict</th>
+      <th>Summary p95</th><th>Dashboard data (idle)</th><th>App commit</th><th>Run</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="8" class="empty">No runs yet</td></tr>'}</tbody>`;
+          document.getElementById("footer").textContent =
+            `${history.length} runs recorded. Baselines update only from passing runs.`;
+        });
+    </script>
+  </body>
+</html>

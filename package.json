@@ -1,0 +1,38 @@
+{
+  "name": "finance-app-performance",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Two-layer performance testing for finance_app: k6 for server load, Playwright + Lighthouse for UX under that load, and one quality gate.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "app:up": "docker compose up -d --build --wait",
+    "app:down": "docker compose down -v",
+    "seed": "tsx scripts/seed.ts",
+    "load": "k6 run load/scenarios/finance.ts",
+    "load:rate-limit": "k6 run load/scenarios/rate-limit.ts",
+    "ux": "playwright test",
+    "perf": "tsx scripts/run.ts",
+    "gate": "tsx gate/cli.ts",
+    "test": "vitest run",
+    "check": "tsc --noEmit && tsc --noEmit -p load && eslint . && prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
+    "@types/k6": "^2.3.0",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "bcryptjs": "^3.0.3",
+    "eslint": "^10.13.0",
+    "lighthouse": "^13.5.0",
+    "pg": "^8.23.1",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5"
+  }
+}
