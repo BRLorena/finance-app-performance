@@ -77,18 +77,23 @@ jobs:
 
       - uses: grafana/setup-k6-action@v1
 
-      - name: Cache Playwright browsers
+      # Restore and save separately, so a failing run still saves the cache.
+      # ubuntu-latest already has Chromium's system libraries: no apt step.
+      - name: Restore Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
           key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Chromium
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium --with-deps
-      - name: Install Chromium system deps
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+        run: npx playwright install chromium
+      - name: Save Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.pw-cache.outputs.cache-primary-key }}
 
       # ── local target: the app and its database, built from finance_app ──
       - uses: docker/setup-buildx-action@v3
