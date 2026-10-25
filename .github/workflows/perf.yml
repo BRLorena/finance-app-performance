@@ -24,8 +24,10 @@ on:
         description: finance_app branch, tag or commit to build (local only)
         default: master
 
+# GitHub keeps one pending run per group, so a manual or scheduled run of
+# one kind must not share a group with another kind (it would be cancelled)
 concurrency:
-  group: perf-${{ github.ref }}
+  group: perf-${{ github.ref }}-${{ github.event_name }}-${{ github.event.schedule }}-${{ github.event.inputs.target }}-${{ github.event.inputs.profile }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
