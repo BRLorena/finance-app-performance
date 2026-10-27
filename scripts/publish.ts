@@ -1,7 +1,8 @@
 /**
  * Builds the GitHub Pages site for a finished run:
  *   history.json                      every run, newest last (capped)
- *   baseline-<target>-<profile>.json  the last *passing* run of that kind
+ *   baseline-<target>-<profile>.json  the median of the last passing runs of
+ *                                     that kind (gate/baseline.ts)
  *   latest-<target>-<profile>.md      the gate's report for that kind
  *   index.html                        the dashboard (reads history.json)
  *
@@ -20,20 +21,15 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, relative } from "node:path";
+import { buildBaseline, type PublishedRun } from "../gate/baseline.ts";
 
 const HISTORY_LIMIT = 200;
 
 const [resultsDir = "results", previousDir = "previous-site", outDir = "site"] =
   process.argv.slice(2);
 
-interface Run {
-  date: string;
-  target: string;
-  profile: string;
-  status: string;
-  runUrl: string | null;
+interface Run extends PublishedRun {
   appCommit: string | null;
-  measurements: Record<string, number>;
 }
 
 const readJson = <T>(path: string, fallback: T): T =>
@@ -57,11 +53,10 @@ writeFileSync(
 );
 
 const kind = `${run.target}-${run.profile}`;
-if (run.status === "passed") {
-  copyFileSync(
-    `${resultsDir}/measurements.json`,
-    `${outDir}/baseline-${kind}.json`,
-  );
+// Failed runs never count, so a slow build can't lower the bar
+const baseline = buildBaseline(history, run.target, run.profile);
+if (baseline) {
+  writeFileSync(`${outDir}/baseline-${kind}.json`, JSON.stringify(baseline));
 }
 copyFileSync(`${resultsDir}/verdict.md`, `${outDir}/latest-${kind}.md`);
 if (existsSync(`${resultsDir}/lighthouse`)) {
@@ -82,5 +77,5 @@ writeFileSync(
 
 console.log(
   `Published ${kind} (${run.status}); history has ${Math.min(history.length, HISTORY_LIMIT)} runs` +
-    (run.status === "passed" ? "; baseline updated" : "; baseline kept"),
+    (baseline ? `; baseline is the last ${baseline.runs} passing runs` : ""),
 );

@@ -15,6 +15,7 @@ import {
   type K6Summary,
   type UxResult,
 } from "./collect.ts";
+import type { Baseline } from "./baseline.ts";
 import { evaluate } from "./evaluate.ts";
 import { toMarkdown } from "./report.ts";
 import { RULES } from "./rules.ts";
@@ -55,9 +56,11 @@ for (const phase of phases) {
 }
 measurements = { ...measurements, ...degradation(measurements) };
 
-const baseline = args.baseline
-  ? readJson<{ measurements: Measurements }>(args.baseline)?.measurements
+// A baseline published before the multi-run one has no samples or runs
+const baselineFile = args.baseline
+  ? readJson<Partial<Baseline> & { measurements: Measurements }>(args.baseline)
   : undefined;
+const baseline = baselineFile?.measurements;
 
 const verdict = evaluate({
   measurements,
@@ -65,6 +68,7 @@ const verdict = evaluate({
   rules: RULES,
   phases,
   baseline,
+  baselineSamples: baselineFile?.samples,
 });
 
 const target = process.env.PERF_TARGET ?? "local";
@@ -72,7 +76,11 @@ const meta: Record<string, string> = {
   Target: target,
   Profile: args.profile!,
   "UX phases": phases.join(" + ") || "none",
-  Baseline: baseline ? "previous passing run" : "none yet",
+  Baseline: !baselineFile
+    ? "none yet"
+    : baselineFile.runs
+      ? `median of the last ${baselineFile.runs} passing runs`
+      : "previous passing run",
   ...(process.env.APP_COMMIT
     ? { "App commit": process.env.APP_COMMIT.slice(0, 7) }
     : {}),
