@@ -184,6 +184,23 @@ describe("evaluate", () => {
     });
   });
 
+  it("gives login a wider noise floor than the other endpoints", () => {
+    const check = (id: string, value: number, baseline: number) =>
+      evaluate({
+        ...base,
+        rules: [],
+        measurements: { [id]: value },
+        baseline: { [id]: baseline },
+      }).checks.find((c) => c.id.endsWith("vs_baseline"))?.status;
+
+    // The slow-runner run that failed nightly: +131 ms on an unchanged app
+    expect(check("load.p95.login", 375, 244)).toBe("passed");
+    // A real regression still fails
+    expect(check("load.p95.login", 600, 244)).toBe("failed");
+    // Other endpoints keep the 50 ms floor
+    expect(check("load.p95.summary", 175, 100)).toBe("failed");
+  });
+
   it("is unstable when the load run left no results", () => {
     const verdict = evaluate({
       ...base,

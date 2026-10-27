@@ -68,13 +68,46 @@ export const options: Options = {
   tags: { profile: PROFILE },
 };
 
+/**
+ * Before the measured run, write once. The UX phase has already loaded the
+ * pages, but nothing has created an expense yet, so without this the first
+ * writes pay the app's cold path: in a smoke run (~24 creates, so the p95 is
+ * the second-slowest) that alone moved expense_create from 8 to 92 ms.
+ * Tagged "warmup" so no endpoint budget counts it.
+ */
+export function setup() {
+  if (READ_ONLY) return;
+  // The last pool account: no profile has that many VUs
+  login(BASE_URL, loadUserEmail(LOAD_USER_COUNT), LOCAL_PASSWORD, "warmup");
+  const created = http.post(
+    `${BASE_URL}/api/expenses`,
+    JSON.stringify({
+      amount: "1.00",
+      description: "k6 warm-up",
+      category: "foodDining",
+      date: new Date().toISOString().slice(0, 10),
+    }),
+    {
+      headers: { "Content-Type": "application/json" },
+      tags: { name: "warmup" },
+    },
+  );
+  const id = created.json("id");
+  if (id) {
+    http.del(`${BASE_URL}/api/expenses/${id}`, null, {
+      tags: { name: "warmup" },
+    });
+  }
+}
+
 let loggedIn = false;
 
 function credentials() {
   if (__ENV.PERF_EMAIL && __ENV.PERF_PASSWORD) {
     return { email: __ENV.PERF_EMAIL, password: __ENV.PERF_PASSWORD };
   }
-  // One account per VU, so the per-user rate limits never kick in
+  // One account per VU, so the per-user rate limits never kick in. A
+  // deployed target has one shared account instead (see THINK_SCALE)
   const vu = exec.vu.idInTest;
   if (vu > LOAD_USER_COUNT) {
     exec.test.abort(`VU ${vu} has no test user; raise LOAD_USER_COUNT`);
@@ -88,8 +121,13 @@ function get(path: string, name: string) {
   return res;
 }
 
+// On a deployed target every VU shares PERF_EMAIL, and so its per-user
+// limits (/api/summary: 30 a minute). At the normal pace 3 VUs make ~36
+// summary calls a minute; twice the think time keeps them near 20.
+const THINK_SCALE = __ENV.PERF_EMAIL ? 2 : 1;
+
 function think() {
-  sleep(1 + Math.random());
+  sleep((1 + Math.random()) * THINK_SCALE);
 }
 
 export default function journey() {
