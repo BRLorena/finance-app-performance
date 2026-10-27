@@ -1,0 +1,15 @@
+diff --git a/src/app/api/summary/route.ts b/src/app/api/summary/route.ts
+index 756b144..f92ee9c 100644
+--- a/src/app/api/summary/route.ts
++++ b/src/app/api/summary/route.ts
+@@ -23,6 +23,10 @@ export async function GET(request: NextRequest) {
+       )
+     }
+ 
++    // DEMO regression: simulates an app change that makes the summary
++    // 300 ms slower. Still under the 500 ms budget: only the baseline sees it.
++    await new Promise((resolve) => setTimeout(resolve, 300))
++
+     const { searchParams } = new URL(request.url)
+     const period = searchParams.get("period") || "all" // all, month, year
+     const year = searchParams.get("year") || new Date().getFullYear().toString()
