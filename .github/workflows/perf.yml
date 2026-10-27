@@ -37,13 +37,15 @@ env:
 jobs:
   perf:
     name: Performance gate
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: a new OS image shifts every timing at once,
+    # so upgrade it deliberately and expect the baselines to move
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Resolve run settings
         id: cfg
@@ -71,7 +73,7 @@ jobs:
             echo "app_sha=$sha"
           } >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -83,7 +85,7 @@ jobs:
       # ubuntu-latest already has Chromium's system libraries: no apt step.
       - name: Restore Playwright browsers
         id: pw-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
           key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -92,7 +94,7 @@ jobs:
         run: npx playwright install chromium
       - name: Save Playwright browsers
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ steps.pw-cache.outputs.cache-primary-key }}
@@ -104,7 +106,7 @@ jobs:
       - name: Restore finance_app image
         id: img-cache
         if: steps.cfg.outputs.target == 'local'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: /tmp/finance-app.tar.zst
           key: finance-app-${{ steps.cfg.outputs.app_sha }}-${{ hashFiles('app/**') }}
@@ -118,7 +120,7 @@ jobs:
           docker save finance-app:local | zstd -T0 -3 -q -o /tmp/finance-app.tar.zst
       - name: Save finance_app image
         if: steps.cfg.outputs.target == 'local' && steps.img-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: /tmp/finance-app.tar.zst
           key: ${{ steps.img-cache.outputs.cache-primary-key }}
@@ -158,7 +160,7 @@ jobs:
 
       - name: Comment on the PR
         if: always() && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: perf-gate
           path: results/verdict.md
@@ -167,7 +169,7 @@ jobs:
         if: failure() && steps.cfg.outputs.target == 'local'
         run: docker compose logs app --tail 200
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: perf-results
@@ -186,7 +188,7 @@ jobs:
       always() && github.ref == 'refs/heads/main' &&
       github.event_name != 'pull_request' &&
       (needs.perf.result == 'success' || needs.perf.result == 'failure')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       pages: write
       id-token: write
@@ -197,14 +199,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       # The artifact holds results/ and test-results/ at its root
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: perf-results
           path: .
@@ -220,8 +222,8 @@ jobs:
             echo "No live site yet"
           fi
       - run: npx tsx scripts/publish.ts results previous-site site
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
