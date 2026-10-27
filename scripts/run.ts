@@ -11,8 +11,9 @@
  * Exit code: the gate's (0 passed, 1 failed, 2 unstable, 3 no-data).
  */
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
+import { readRequests, slowestReport } from "../gate/requests.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -34,6 +35,12 @@ if (!(profile in UX_UNDER_LOAD_AT)) {
   process.exit(3);
 }
 const uxAt = UX_UNDER_LOAD_AT[profile];
+
+const REQUESTS_CSV = "results/k6-requests.csv.gz";
+// --system-tags replaces k6's list, so it repeats the defaults
+const K6_DEFAULT_SYSTEM_TAGS =
+  "proto,subproto,status,method,url,name,group,check,error,error_code," +
+  "tls_version,scenario,service,expected_response";
 
 function run(
   command: string,
@@ -68,9 +75,14 @@ const k6 = run(
     "--quiet",
     "--summary-export",
     "results/k6-summary.json",
+    // Every request's timing too, with the VU and iteration that made it
+    "--out",
+    `csv=${REQUESTS_CSV}`,
+    "--system-tags",
+    `${K6_DEFAULT_SYSTEM_TAGS},vu,iter`,
     "load/scenarios/finance.ts",
   ],
-  { PROFILE: profile },
+  { PROFILE: profile, K6_CSV_TIME_FORMAT: "unix_milli" },
 );
 
 const phases = ["idle"];
@@ -82,6 +94,12 @@ if (uxAt !== undefined) {
 const k6Exit = await k6;
 // 99 means thresholds were crossed: the gate reports which ones
 if (k6Exit !== 0 && k6Exit !== 99) console.error(`k6 exited with ${k6Exit}`);
+
+if (existsSync(REQUESTS_CSV)) {
+  const report = slowestReport(readRequests(REQUESTS_CSV));
+  writeFileSync("results/requests.md", report);
+  console.log(`\n${report}`);
+}
 
 console.log("\n── Gate ──");
 const gateArgs = [

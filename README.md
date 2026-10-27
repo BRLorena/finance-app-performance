@@ -136,7 +136,7 @@ Load testing the live URL would use up the free tiers of Vercel and Neon, measur
 
 - **Caching:** the finished `finance_app` image (two-stage build, 1.08 GB, no dev dependencies) is cached whole, keyed by the app commit and everything under `app/`, so a cache hit is one download plus `docker load`. Playwright's browsers are cached too, and both caches are saved even when the gate fails.
 - **Merge gate:** `Performance gate` is a required check on `main`, so a PR that fails or can't be measured can't merge.
-- Every run uploads its results (k6 summary, UX samples, Lighthouse HTML reports, verdict) as an artifact. The session cookie is excluded.
+- Every run uploads its results (k6 summary, every request's timing, UX samples, Lighthouse HTML reports, verdict) as an artifact. The session cookie is excluded. The job summary also lists each endpoint's slowest requests, with when they happened and which VU and iteration made them.
 - Runs on `main` publish to [GitHub Pages](https://brlorena.github.io/finance-app-performance/): the run is appended to `history.json`, and the baseline is rebuilt from the last 7 passing runs of that kind. History lives on Pages, not in git.
 
 ---
@@ -163,7 +163,7 @@ npm run app:down      # stop and delete the database
 
 To measure a change to `finance_app` before it's pushed there, put its diff in `app/patches/*.patch`: it's applied before the build ([details](app/patches/README.md)).
 
-Results land in `results/`: `verdict.md`, `k6-summary.json`, `ux-*.json` and the Lighthouse HTML reports.
+Results land in `results/`: `verdict.md`, `k6-summary.json`, `k6-requests.csv.gz` (every request, with its VU and iteration), `requests.md` (the slowest requests per endpoint), `ux-*.json` and the Lighthouse HTML reports.
 
 ---
 
