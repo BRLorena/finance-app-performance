@@ -62,7 +62,7 @@ A separate scenario checks the app's own protection: one user bursts `/api/summa
 
 - **Load budgets** are k6 thresholds (`p95` per endpoint, error rate, checks, no 429s), so `k6 run` fails on its own and the gate reports which threshold broke.
 - **UX budgets** use Google's "good" Core Web Vitals (LCP ≤ 2.5s, CLS ≤ 0.1), plus a limit on how much slower the dashboard may get under load.
-- **Baseline:** every metric is compared with the last **passing** run of the same target and profile. A metric regresses only when it's worse by more than 25% **and** by more than an absolute noise floor (100 ms for UX, 50 ms for endpoints), so shared CI runner noise doesn't fail builds. Failed runs never become the baseline.
+- **Baseline:** every metric is compared with the **median of the last 7 passing runs** of the same target and profile. A metric regresses only when it's worse than that median by more than 25%, **and** by more than an absolute noise floor (100 ms for UX, 50 ms for endpoints), **and** worse than every one of those runs, so shared CI runner noise doesn't fail builds. Failed runs never count toward the baseline.
 - **Four verdicts:**
 
 | Verdict    | Meaning                                                                                          |
@@ -137,7 +137,7 @@ Load testing the live URL would use up the free tiers of Vercel and Neon, measur
 - **Caching:** the finished `finance_app` image (two-stage build, 1.08 GB, no dev dependencies) is cached whole, keyed by the app commit and everything under `app/`, so a cache hit is one download plus `docker load`. Playwright's browsers are cached too, and both caches are saved even when the gate fails.
 - **Merge gate:** `Performance gate` is a required check on `main`, so a PR that fails or can't be measured can't merge.
 - Every run uploads its results (k6 summary, UX samples, Lighthouse HTML reports, verdict) as an artifact. The session cookie is excluded.
-- Runs on `main` publish to [GitHub Pages](https://brlorena.github.io/finance-app-performance/): the run is appended to `history.json`, and a passing run becomes the new baseline. History lives on Pages, not in git.
+- Runs on `main` publish to [GitHub Pages](https://brlorena.github.io/finance-app-performance/): the run is appended to `history.json`, and the baseline is rebuilt from the last 7 passing runs of that kind. History lives on Pages, not in git.
 
 ---
 

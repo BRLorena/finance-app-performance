@@ -1,3 +1,4 @@
+import { spread } from "./baseline.ts";
 import { LOAD_NOISE_FLOOR_MS, LOAD_REGRESSION } from "./rules.ts";
 import type {
   CheckResult,
@@ -16,8 +17,10 @@ export interface GateInput {
   rules: Rule[];
   /** UX phases this run was meant to measure */
   phases: Phase[];
-  /** Measurements of the last passing run of the same profile */
+  /** Median of the recent passing runs of the same target and profile */
   baseline?: Measurements;
+  /** Those runs' values; without them the median alone is the baseline */
+  baselineSamples?: Record<string, number[]>;
 }
 
 interface Regression {
@@ -25,17 +28,24 @@ interface Regression {
   changePct: number;
 }
 
-/** Positive changePct always means "worse" */
+/**
+ * Positive changePct always means "worse". A regression is worse than the
+ * baseline by more than the tolerance, the noise floor and the spread (how
+ * much worse the recent passing runs themselves already got).
+ */
 export function compareToBaseline(
   value: number,
   baseline: number,
   rule: Pick<Rule, "regressionPct" | "noiseFloor" | "higherIsBetter">,
+  spread = 0,
 ): Regression | undefined {
   if (rule.regressionPct === undefined || baseline === 0) return undefined;
   const worse = rule.higherIsBetter ? baseline - value : value - baseline;
   const changePct = (worse / baseline) * 100;
   return {
-    regressed: changePct > rule.regressionPct && worse > (rule.noiseFloor ?? 0),
+    regressed:
+      changePct > rule.regressionPct &&
+      worse > Math.max(rule.noiseFloor ?? 0, spread),
     changePct,
   };
 }
@@ -81,10 +91,16 @@ function loadRegressionChecks(input: GateInput): CheckResult[] {
       const base = input.baseline![id];
       if (base === undefined) return [];
       const endpoint = id.replace("load.p95.", "");
-      const r = compareToBaseline(value, base, {
-        ...LOAD_REGRESSION,
-        noiseFloor: LOAD_NOISE_FLOOR_MS[endpoint] ?? LOAD_REGRESSION.noiseFloor,
-      });
+      const r = compareToBaseline(
+        value,
+        base,
+        {
+          ...LOAD_REGRESSION,
+          noiseFloor:
+            LOAD_NOISE_FLOOR_MS[endpoint] ?? LOAD_REGRESSION.noiseFloor,
+        },
+        spread(input.baselineSamples?.[id]),
+      );
       if (!r) return [];
       return [
         {
@@ -131,7 +147,14 @@ function ruleCheck(rule: Rule, input: GateInput): CheckResult {
   if (rule.min !== undefined && value < rule.min)
     problems.push(`under budget (${rule.min})`);
   const r =
-    base === undefined ? undefined : compareToBaseline(value, base, rule);
+    base === undefined
+      ? undefined
+      : compareToBaseline(
+          value,
+          base,
+          rule,
+          spread(input.baselineSamples?.[rule.id], rule.higherIsBetter),
+        );
   if (r?.regressed)
     problems.push(`${round(r.changePct)}% worse than the baseline`);
 

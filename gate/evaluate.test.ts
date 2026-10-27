@@ -201,6 +201,21 @@ describe("evaluate", () => {
     expect(check("load.p95.summary", 175, 100)).toBe("failed");
   });
 
+  it("passes a run no slower than one of the recent passing runs", () => {
+    const status = (value: number) =>
+      evaluate({
+        ...base,
+        rules: [],
+        measurements: { "load.p95.expense_create": value },
+        baseline: { "load.p95.expense_create": 8 },
+        baselineSamples: { "load.p95.expense_create": [7, 8, 8, 9, 60] },
+      }).checks.find((c) => c.id.endsWith("vs_baseline"))?.status;
+
+    expect(status(55)).toBe("passed");
+    // Worse than every recent run and past the floor: a regression
+    expect(status(92)).toBe("failed");
+  });
+
   it("is unstable when the load run left no results", () => {
     const verdict = evaluate({
       ...base,

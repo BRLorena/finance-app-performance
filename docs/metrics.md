@@ -41,11 +41,22 @@ in a fresh browser context (cold cache) and the **median** is kept.
 
 ## Baseline and noise
 
-Every check with a tolerance is also compared with the **last passing run of the
-same target and profile** (`baseline-<target>-<profile>.json` on GitHub Pages).
-A metric regresses only when it's worse by more than `BASELINE_NOISE_PCT`
-(default 25%) **and** by more than an absolute noise floor (100 ms for UX, 50 ms
-for endpoints). The floor stops a 20 ms → 30 ms change (+50%) from failing a build.
+Every check with a tolerance is also compared with the **median of the last
+`BASELINE_RUNS` (default 7) passing runs of the same target and profile**
+(`baseline-<target>-<profile>.json` on GitHub Pages, built by `gate/baseline.ts`).
+A metric regresses only when all three hold:
+
+1. it's worse than the median by more than `BASELINE_NOISE_PCT` (default 25%);
+2. it's worse by more than an absolute noise floor (100 ms for UX, 50 ms for
+   endpoints). The floor stops a 20 ms → 30 ms change (+50%) from failing a build;
+3. it's worse than every one of those runs (the _spread_): a value one of the
+   recent passing runs already reached isn't a regression.
+
+The baseline used to be the single last passing run. One run can land on a
+fast runner: the nightly login p95 failed at 375 ms against a 244 ms run, while
+the three runs before it were 244, 331 and 366 ms. Against their median (331 ms)
+it's +13% and passes. The PR #4 regression (summary 15 → 319 ms) still fails,
+and so does anything well outside what the recent runs did.
 The endpoint floor was 25 ms until a smoke run (about 24 requests per endpoint,
 so the p95 is the second-slowest request) measured `expense_create` at 38 ms
 against a 7 ms baseline on an unchanged app. 50 ms still catches a real
@@ -53,8 +64,9 @@ regression like the 300 ms one in demo PR #4.
 Login has a 150 ms floor: bcrypt makes it track the runner's CPU, and a slow
 runner moved its p95 from 244 ms to 375 ms on an unchanged app.
 
-Failed runs never become the baseline, so a slow build can't lower the bar for
-the next one.
+Failed runs never count toward the baseline, so a slow build can't lower the
+bar for the next one. A slow run that still passes widens the spread for the
+next 7 runs of its kind; the 25% tolerance still applies on top of it.
 
 ## Verdicts
 
