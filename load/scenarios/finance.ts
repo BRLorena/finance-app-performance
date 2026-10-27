@@ -68,6 +68,38 @@ export const options: Options = {
   tags: { profile: PROFILE },
 };
 
+/**
+ * Before the measured run, write once. The UX phase has already loaded the
+ * pages, but nothing has created an expense yet, so without this the first
+ * writes pay the app's cold path: in a smoke run (~24 creates, so the p95 is
+ * the second-slowest) that alone moved expense_create from 8 to 92 ms.
+ * Tagged "warmup" so no endpoint budget counts it.
+ */
+export function setup() {
+  if (READ_ONLY) return;
+  // The last pool account: no profile has that many VUs
+  login(BASE_URL, loadUserEmail(LOAD_USER_COUNT), LOCAL_PASSWORD, "warmup");
+  const created = http.post(
+    `${BASE_URL}/api/expenses`,
+    JSON.stringify({
+      amount: "1.00",
+      description: "k6 warm-up",
+      category: "foodDining",
+      date: new Date().toISOString().slice(0, 10),
+    }),
+    {
+      headers: { "Content-Type": "application/json" },
+      tags: { name: "warmup" },
+    },
+  );
+  const id = created.json("id");
+  if (id) {
+    http.del(`${BASE_URL}/api/expenses/${id}`, null, {
+      tags: { name: "warmup" },
+    });
+  }
+}
+
 let loggedIn = false;
 
 function credentials() {

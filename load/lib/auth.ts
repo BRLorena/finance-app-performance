@@ -7,7 +7,12 @@ import { check } from "k6";
  * session cookie lands in the VU's cookie jar and is reused by every
  * later request (the scenario sets noCookiesReset).
  */
-export function login(baseUrl: string, email: string, password: string) {
+export function login(
+  baseUrl: string,
+  email: string,
+  password: string,
+  name = "login",
+) {
   const csrf = http.get(`${baseUrl}/api/auth/csrf`, {
     tags: { name: "auth_csrf" },
   });
@@ -16,7 +21,7 @@ export function login(baseUrl: string, email: string, password: string) {
   const res = http.post(
     `${baseUrl}/api/auth/callback/credentials`,
     { email, password, csrfToken, callbackUrl: `${baseUrl}/pt/dashboard` },
-    { redirects: 0, tags: { name: "login" } },
+    { redirects: 0, tags: { name } },
   );
 
   const jar = http.cookieJar();
