@@ -74,7 +74,8 @@ function credentials() {
   if (__ENV.PERF_EMAIL && __ENV.PERF_PASSWORD) {
     return { email: __ENV.PERF_EMAIL, password: __ENV.PERF_PASSWORD };
   }
-  // One account per VU, so the per-user rate limits never kick in
+  // One account per VU, so the per-user rate limits never kick in. A
+  // deployed target has one shared account instead (see THINK_SCALE)
   const vu = exec.vu.idInTest;
   if (vu > LOAD_USER_COUNT) {
     exec.test.abort(`VU ${vu} has no test user; raise LOAD_USER_COUNT`);
@@ -88,8 +89,13 @@ function get(path: string, name: string) {
   return res;
 }
 
+// On a deployed target every VU shares PERF_EMAIL, and so its per-user
+// limits (/api/summary: 30 a minute). At the normal pace 3 VUs make ~36
+// summary calls a minute; twice the think time keeps them near 20.
+const THINK_SCALE = __ENV.PERF_EMAIL ? 2 : 1;
+
 function think() {
-  sleep(1 + Math.random());
+  sleep((1 + Math.random()) * THINK_SCALE);
 }
 
 export default function journey() {

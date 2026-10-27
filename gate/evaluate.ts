@@ -1,4 +1,4 @@
-import { LOAD_REGRESSION } from "./rules.ts";
+import { LOAD_NOISE_FLOOR_MS, LOAD_REGRESSION } from "./rules.ts";
 import type {
   CheckResult,
   K6Threshold,
@@ -80,12 +80,16 @@ function loadRegressionChecks(input: GateInput): CheckResult[] {
     .flatMap(([id, value]): CheckResult[] => {
       const base = input.baseline![id];
       if (base === undefined) return [];
-      const r = compareToBaseline(value, base, LOAD_REGRESSION);
+      const endpoint = id.replace("load.p95.", "");
+      const r = compareToBaseline(value, base, {
+        ...LOAD_REGRESSION,
+        noiseFloor: LOAD_NOISE_FLOOR_MS[endpoint] ?? LOAD_REGRESSION.noiseFloor,
+      });
       if (!r) return [];
       return [
         {
           id: `${id}.vs_baseline`,
-          label: `${id.replace("load.p95.", "")} p95 vs baseline`,
+          label: `${endpoint} p95 vs baseline`,
           layer: "load",
           status: r.regressed ? "failed" : "passed",
           value: round(value),

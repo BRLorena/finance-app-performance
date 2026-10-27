@@ -81,3 +81,12 @@ export const LOAD_REGRESSION: Pick<Rule, "regressionPct" | "noiseFloor"> = {
   regressionPct: NOISE_PCT,
   noiseFloor: 50,
 };
+
+/**
+ * Endpoints whose p95 swings more than 50 ms on an unchanged app. Login
+ * hashes the password with bcrypt, so it tracks the runner's CPU: a slow
+ * runner moved it 244 → 375 ms with the same app commit.
+ */
+export const LOAD_NOISE_FLOOR_MS: Record<string, number> = {
+  login: 150,
+};

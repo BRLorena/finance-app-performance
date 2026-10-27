@@ -50,6 +50,8 @@ The endpoint floor was 25 ms until a smoke run (about 24 requests per endpoint,
 so the p95 is the second-slowest request) measured `expense_create` at 38 ms
 against a 7 ms baseline on an unchanged app. 50 ms still catches a real
 regression like the 300 ms one in demo PR #4.
+Login has a 150 ms floor: bcrypt makes it track the runner's CPU, and a slow
+runner moved its p95 from 244 ms to 375 ms on an unchanged app.
 
 Failed runs never become the baseline, so a slow build can't lower the bar for
 the next one.
