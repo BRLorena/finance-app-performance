@@ -156,7 +156,9 @@ jobs:
 
       - name: Job summary
         if: always()
-        run: cat results/verdict.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "No verdict" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          cat results/verdict.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "No verdict" >> "$GITHUB_STEP_SUMMARY"
+          cat results/requests.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
 
       - name: Comment on the PR
         if: always() && github.event_name == 'pull_request'
