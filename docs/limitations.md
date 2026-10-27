@@ -21,9 +21,28 @@
 - **Login isn't rate-limited.** Only `/api/register` limits by IP, so the
   credentials callback accepts unlimited attempts. Observed while writing the
   login flow; not load-tested against production.
-- **Under stress, the list endpoints degrade first.** Expense and income
-  lists reach a p95 of 351–377 ms in CI at up to 140 VUs, while the
-  12-query summary stays at 157 ms. Not investigated yet.
+- **Under stress, the single app process is the limit, not the database.**
+  At up to 140 VUs, the dashboard, both lists and `expense_create` reach a p95
+  of 350–400 ms. A stress run with `scripts/diag.sh`
+  ([run](https://github.com/BRLorena/finance-app-performance/actions/runs/40589934241))
+  showed:
+  - **The database is mostly idle.** The slowest query averages 1.4 ms, the
+    database averages 14% of one CPU, and at most 2 queries ran at once, with
+    no lock waits.
+  - **Medians stay at 5–16 ms for every endpoint.** The p95 comes from the share
+    of requests caught behind a busy moment, which grows from 5–10% (up to
+    80 VUs) to about 30% (105–140 VUs).
+  - **The app container reaches 100–149% CPU in that phase.** `next start` runs
+    JavaScript on one main thread, so about 100% means the process is saturated.
+  - **The UX-under-load phase adds to it.** Chromium on the same runner raised
+    the slow share to 31–49% while it ran (200–229 s).
+
+  So the "slow list endpoints" were a queue every endpoint shares. On Vercel,
+  traffic spreads over many instances, so this limit is specific to the
+  single-process CI setup. `expenses.userId` and `incomes.userId` have no
+  index, but at this data size (40 rows per user) the queries take about 1 ms,
+  so an index wouldn't change these numbers.
+
 - **AI endpoints are excluded.** `/api/ai/*` call Groq's free tier (30 requests
   a minute), so load would measure Groq's quota, not the app.
 - **The weekly production run is a smoke check, not a load test.** 3 virtual

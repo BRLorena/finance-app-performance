@@ -108,7 +108,7 @@ The server's p95 says 1 in 20 page requests waits about 400 ms, and that tail wa
 
 Also in [docs/limitations.md](docs/limitations.md):
 
-- **Under stress, the list endpoints slow down before the summary does,** both in CI (lists 351–377 ms vs summary 157 ms) and locally (lists 620–675 ms vs summary 335 ms). That's despite the summary running 12 aggregate queries per request. A likely place to look is how the list endpoints query and count. Not investigated yet.
+- **Under stress, the single app process is the limit, not the database.** At up to 140 VUs, the dashboard, both lists and `expense_create` reach a p95 of 350–400 ms, but their medians stay at 5–16 ms. The database averages 14% CPU, its slowest query takes 1.4 ms, and at most 2 queries ever run at once. Meanwhile the app container reaches 100–149% CPU: one `next start` process is CPU-bound, and every endpoint waits in the same queue. The earlier "list endpoints degrade first" was a symptom of that, not a list problem. Measured with `scripts/diag.sh`; details in [docs/limitations.md](docs/limitations.md).
 - **The rate limiter counts per instance.** It keeps its counters in each server instance's memory, so on Vercel each serverless instance counts separately and the limit isn't enforced across instances.
 - **Login has no rate limit.** Only registration has one; the credentials callback accepts unlimited attempts.
 
@@ -136,7 +136,7 @@ Load testing the live URL would use up the free tiers of Vercel and Neon, measur
 
 - **Caching:** the finished `finance_app` image (two-stage build, 1.08 GB, no dev dependencies) is cached whole, keyed by the app commit and everything under `app/`, so a cache hit is one download plus `docker load`. Playwright's browsers are cached too, and both caches are saved even when the gate fails.
 - **Merge gate:** `Performance gate` is a required check on `main`, so a PR that fails or can't be measured can't merge.
-- Every run uploads its results (k6 summary, every request's timing, UX samples, Lighthouse HTML reports, verdict) as an artifact. The session cookie is excluded. The job summary also lists each endpoint's slowest requests, with when they happened and which VU and iteration made them.
+- Every run uploads its results (k6 summary, every request's timing, UX samples, Lighthouse HTML reports, verdict) as an artifact. The session cookie is excluded. The job summary also lists each endpoint's slowest requests, with when they happened and which VU and iteration made them. Local runs add `diag/`, from `scripts/diag.sh`: app and database CPU every 2 seconds, busy database connections, and the slowest queries (`pg_stat_statements`).
 - Runs on `main` publish to [GitHub Pages](https://brlorena.github.io/finance-app-performance/): the run is appended to `history.json`, and the baseline is rebuilt from the last 7 passing runs of that kind. History lives on Pages, not in git.
 
 ---

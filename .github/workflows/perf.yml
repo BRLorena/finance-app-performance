@@ -130,6 +130,9 @@ jobs:
       - name: Seed test users
         if: steps.cfg.outputs.target == 'local'
         run: npm run seed
+      - name: Start diagnostics
+        if: steps.cfg.outputs.target == 'local'
+        run: scripts/diag.sh start
 
       - name: Download baseline
         env:
@@ -154,11 +157,15 @@ jobs:
           [ -f baseline.json ] && args="$args --baseline baseline.json"
           npm run perf -- $args
 
+      - name: Stop diagnostics
+        if: always() && steps.cfg.outputs.target == 'local'
+        run: scripts/diag.sh stop
+
       - name: Job summary
         if: always()
         run: |
           cat results/verdict.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "No verdict" >> "$GITHUB_STEP_SUMMARY"
-          cat results/requests.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          cat results/requests.md diag/containers.md diag/queries.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
 
       - name: Comment on the PR
         if: always() && github.event_name == 'pull_request'
@@ -179,6 +186,7 @@ jobs:
           path: |
             results/
             test-results/
+            diag/
             !results/.auth/
           retention-days: 14
 
